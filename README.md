@@ -20,3 +20,10 @@ Aplicação web desenvolvida como Projeto de Extensão para organização de clu
 cd frontend
 npm install
 npm run dev
+
+### Backend
+```bash
+cd backend
+.venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+uvicorn app.main:app --reload
