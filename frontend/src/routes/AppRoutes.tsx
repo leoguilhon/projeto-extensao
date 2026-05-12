@@ -6,6 +6,8 @@ import { ClubDetailsPage } from "../pages/ClubDetailsPage";
 import { BookDetailsPage } from "../pages/BookDetailsPage";
 import { MeetingsPage } from "../pages/MeetingsPage";
 import { ProfilePage } from "../pages/ProfilePage";
+import { ProtectedRoute } from "../components/ProtectedRoute";
+import { AppLayout } from "../components/AppLayout";
 
 export function AppRoutes() {
   return (
@@ -13,11 +15,15 @@ export function AppRoutes() {
       <Routes>
         <Route path="/" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
-        <Route path="/dashboard" element={<DashboardPage />} />
-        <Route path="/clubs/:id" element={<ClubDetailsPage />} />
-        <Route path="/books/:id" element={<BookDetailsPage />} />
-        <Route path="/clubs/:id/meetings" element={<MeetingsPage />} />
-        <Route path="/profile" element={<ProfilePage />} />
+        <Route element={<ProtectedRoute />}>
+          <Route element={<AppLayout />}>
+            <Route path="/dashboard" element={<DashboardPage />} />
+            <Route path="/clubs/:id" element={<ClubDetailsPage />} />
+            <Route path="/books/:id" element={<BookDetailsPage />} />
+            <Route path="/clubs/:id/meetings" element={<MeetingsPage />} />
+            <Route path="/profile" element={<ProfilePage />} />
+          </Route>
+        </Route>
       </Routes>
     </BrowserRouter>
   );

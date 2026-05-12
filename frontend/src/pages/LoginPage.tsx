@@ -1,33 +1,64 @@
+import { useState } from "react";
+import type { FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { useAuth } from "../contexts/AuthContext";
+import { getErrorMessage } from "../services/api";
 
 export function LoginPage() {
   const navigate = useNavigate();
+  const { login } = useAuth();
+  const [email, setEmail] = useState("ana@lendojuntos.test");
+  const [password, setPassword] = useState("123456");
+  const [error, setError] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    navigate("/dashboard");
+    setError("");
+    setIsSubmitting(true);
+
+    try {
+      await login(email, password);
+      navigate("/dashboard");
+    } catch (err) {
+      setError(getErrorMessage(err));
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
   return (
-    <main>
-      <h1>LendoJuntos</h1>
-      <h2>Login</h2>
-
-      <form onSubmit={handleSubmit}>
+    <main className="auth-page">
+      <section className="auth-panel">
         <div>
-          <input type="email" placeholder="E-mail" />
+          <img className="auth-logo primary" src="/images/logo-primary.png" alt="LendoJuntos" />
+          <p className="eyebrow">Clubes de leitura organizados</p>
+          <h1 className="sr-only">LendoJuntos</h1>
+          <p>Centralize clubes, livros e histórico de leituras em uma única plataforma.</p>
         </div>
 
-        <div>
-          <input type="password" placeholder="Senha" />
-        </div>
+        <form onSubmit={handleSubmit}>
+          <label>
+            E-mail
+            <input type="email" value={email} onChange={(event) => setEmail(event.target.value)} required />
+          </label>
 
-        <button type="submit">Entrar</button>
-      </form>
+          <label>
+            Senha
+            <input type="password" value={password} onChange={(event) => setPassword(event.target.value)} required />
+          </label>
 
-      <p>
-        Não tem conta? <Link to="/register">Criar conta</Link>
-      </p>
+          {error && <p className="feedback error">{error}</p>}
+
+          <button type="submit" disabled={isSubmitting}>
+            {isSubmitting ? "Entrando..." : "Entrar"}
+          </button>
+        </form>
+
+        <p>
+          Não tem conta? <Link to="/register">Criar conta</Link>
+        </p>
+      </section>
     </main>
   );
 }

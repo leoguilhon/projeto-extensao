@@ -1,0 +1,73 @@
+import axios from "axios";
+import type { AuthResponse, Book, Club, ClubMember, ReadingHistoryItem, ReadingStatus, User } from "../types";
+
+const api = axios.create({
+  baseURL: import.meta.env.VITE_API_BASE_URL ?? "http://127.0.0.1:8000",
+});
+
+api.interceptors.request.use((config) => {
+  const token = localStorage.getItem("lendojuntos:token");
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
+
+export function getErrorMessage(error: unknown) {
+  if (axios.isAxiosError(error)) {
+    const detail = error.response?.data?.detail;
+    return typeof detail === "string" ? detail : "Não foi possível concluir a operação.";
+  }
+  return "Não foi possível concluir a operação.";
+}
+
+export const authService = {
+  login(email: string, password: string) {
+    return api.post<AuthResponse>("/auth/login", { email, password }).then((response) => response.data);
+  },
+  register(name: string, email: string, password: string) {
+    return api.post<AuthResponse>("/auth/register", { name, email, password }).then((response) => response.data);
+  },
+  me() {
+    return api.get<User>("/users/me").then((response) => response.data);
+  },
+  updateProfile(name: string, bio: string) {
+    return api.put<User>("/users/me", { name, bio }).then((response) => response.data);
+  },
+};
+
+export const clubService = {
+  list() {
+    return api.get<Club[]>("/clubs").then((response) => response.data);
+  },
+  create(name: string, description: string) {
+    return api.post<Club>("/clubs", { name, description }).then((response) => response.data);
+  },
+  get(id: string | number) {
+    return api.get<Club>(`/clubs/${id}`).then((response) => response.data);
+  },
+  join(id: string | number) {
+    return api.post<Club>(`/clubs/${id}/join`).then((response) => response.data);
+  },
+  members(id: string | number) {
+    return api.get<ClubMember[]>(`/clubs/${id}/members`).then((response) => response.data);
+  },
+};
+
+export const bookService = {
+  listByClub(clubId: string | number) {
+    return api.get<Book[]>(`/clubs/${clubId}/books`).then((response) => response.data);
+  },
+  create(clubId: string | number, payload: { title: string; author: string; description: string; status: ReadingStatus }) {
+    return api.post<Book>(`/clubs/${clubId}/books`, payload).then((response) => response.data);
+  },
+  get(id: string | number) {
+    return api.get<Book>(`/books/${id}`).then((response) => response.data);
+  },
+  updateStatus(id: string | number, status: ReadingStatus) {
+    return api.patch<Book>(`/books/${id}/status`, { status }).then((response) => response.data);
+  },
+  history(clubId: string | number) {
+    return api.get<ReadingHistoryItem[]>(`/clubs/${clubId}/reading-history`).then((response) => response.data);
+  },
+};
