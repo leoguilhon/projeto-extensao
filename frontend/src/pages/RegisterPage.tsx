@@ -1,36 +1,76 @@
+import { useState } from "react";
+import type { FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { useAuth } from "../contexts/AuthContext";
+import { getErrorMessage } from "../services/api";
 
 export function RegisterPage() {
   const navigate = useNavigate();
+  const { register } = useAuth();
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    navigate("/");
+    setError("");
+    setIsSubmitting(true);
+
+    try {
+      await register(name, email, password);
+      navigate("/dashboard");
+    } catch (err) {
+      setError(getErrorMessage(err));
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
   return (
-    <main>
-      <h1>Cadastro</h1>
-
-      <form onSubmit={handleSubmit}>
+    <main className="auth-page">
+      <section className="auth-panel">
         <div>
-          <input type="text" placeholder="Nome" />
+          <img className="auth-logo" src="/images/logo-header.png" alt="LendoJuntos" />
+          <p className="eyebrow">Novo participante</p>
+          <h1>Cadastro</h1>
+          <p>Crie sua conta para participar de clubes e acompanhar leituras.</p>
         </div>
 
-        <div>
-          <input type="email" placeholder="E-mail" />
-        </div>
+        <form onSubmit={handleSubmit}>
+          <label>
+            Nome
+            <input type="text" value={name} onChange={(event) => setName(event.target.value)} required />
+          </label>
 
-        <div>
-          <input type="password" placeholder="Senha" />
-        </div>
+          <label>
+            E-mail
+            <input type="email" value={email} onChange={(event) => setEmail(event.target.value)} required />
+          </label>
 
-        <button type="submit">Cadastrar</button>
-      </form>
+          <label>
+            Senha
+            <input
+              type="password"
+              minLength={6}
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              required
+            />
+          </label>
 
-      <p>
-        Já tem conta? <Link to="/">Voltar para login</Link>
-      </p>
+          {error && <p className="feedback error">{error}</p>}
+
+          <button type="submit" disabled={isSubmitting}>
+            {isSubmitting ? "Cadastrando..." : "Cadastrar"}
+          </button>
+        </form>
+
+        <p>
+          Já tem conta? <Link to="/">Voltar para login</Link>
+        </p>
+      </section>
     </main>
   );
 }
