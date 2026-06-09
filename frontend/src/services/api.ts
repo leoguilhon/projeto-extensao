@@ -1,5 +1,15 @@
 import axios from "axios";
-import type { AuthResponse, Book, Club, ClubMember, ReadingHistoryItem, ReadingStatus, User } from "../types";
+import type {
+  AuthResponse,
+  Book,
+  Club,
+  ClubMember,
+  Comment,
+  Meeting,
+  ReadingHistoryItem,
+  ReadingStatus,
+  User,
+} from "../types";
 
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL ?? "http://127.0.0.1:8000",
@@ -67,7 +77,34 @@ export const bookService = {
   updateStatus(id: string | number, status: ReadingStatus) {
     return api.patch<Book>(`/books/${id}/status`, { status }).then((response) => response.data);
   },
+  comments(id: string | number) {
+    return api.get<Comment[]>(`/books/${id}/comments`).then((response) => response.data);
+  },
+  addComment(id: string | number, content: string) {
+    return api.post<Comment>(`/books/${id}/comments`, { content }).then((response) => response.data);
+  },
+  meetings(id: string | number) {
+    return api.get<Meeting[]>(`/books/${id}/meetings`).then((response) => response.data);
+  },
   history(clubId: string | number) {
     return api.get<ReadingHistoryItem[]>(`/clubs/${clubId}/reading-history`).then((response) => response.data);
+  },
+};
+
+export const meetingService = {
+  listByClub(clubId: string | number) {
+    return api.get<Meeting[]>(`/clubs/${clubId}/meetings`).then((response) => response.data);
+  },
+  create(
+    clubId: string | number,
+    payload: { title: string; scheduled_for: string; location: string; agenda: string; book_id: number | null },
+  ) {
+    return api.post<Meeting>(`/clubs/${clubId}/meetings`, payload).then((response) => response.data);
+  },
+  comments(id: string | number) {
+    return api.get<Comment[]>(`/meetings/${id}/comments`).then((response) => response.data);
+  },
+  addComment(id: string | number, content: string) {
+    return api.post<Comment>(`/meetings/${id}/comments`, { content }).then((response) => response.data);
   },
 };

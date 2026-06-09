@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import type { FormEvent } from "react";
 import { Link, useParams } from "react-router-dom";
-import { bookService, clubService, getErrorMessage } from "../services/api";
-import type { Book, Club, ClubMember, ReadingHistoryItem, ReadingStatus } from "../types";
+import { bookService, clubService, getErrorMessage, meetingService } from "../services/api";
+import type { Book, Club, ClubMember, Meeting, ReadingHistoryItem, ReadingStatus } from "../types";
 
 const statusLabel: Record<ReadingStatus, string> = {
   planejado: "Planejado",
@@ -10,11 +10,19 @@ const statusLabel: Record<ReadingStatus, string> = {
   concluido: "Concluído",
 };
 
+function formatDate(value: string) {
+  return new Date(value).toLocaleString("pt-BR", {
+    dateStyle: "short",
+    timeStyle: "short",
+  });
+}
+
 export function ClubDetailsPage() {
   const { id } = useParams();
   const [club, setClub] = useState<Club | null>(null);
   const [members, setMembers] = useState<ClubMember[]>([]);
   const [books, setBooks] = useState<Book[]>([]);
+  const [meetings, setMeetings] = useState<Meeting[]>([]);
   const [history, setHistory] = useState<ReadingHistoryItem[]>([]);
   const [title, setTitle] = useState("");
   const [author, setAuthor] = useState("");
@@ -22,34 +30,52 @@ export function ClubDetailsPage() {
   const [status, setStatus] = useState<ReadingStatus>("planejado");
   const [feedback, setFeedback] = useState("");
   const [isLoading, setIsLoading] = useState(true);
+  const [currentTime, setCurrentTime] = useState(() => new Date().toISOString());
 
   const isAdmin = club?.current_user_role === "admin";
   const currentBook = useMemo(() => books.find((book) => book.status === "em_leitura"), [books]);
-
-  async function loadClub() {
-    if (!id) return;
-    setIsLoading(true);
-    setFeedback("");
-    try {
-      const [clubData, memberData, bookData, historyData] = await Promise.all([
-        clubService.get(id),
-        clubService.members(id),
-        bookService.listByClub(id),
-        bookService.history(id),
-      ]);
-      setClub(clubData);
-      setMembers(memberData);
-      setBooks(bookData);
-      setHistory(historyData);
-    } catch (err) {
-      setFeedback(getErrorMessage(err));
-    } finally {
-      setIsLoading(false);
-    }
-  }
+  const nextMeeting = useMemo(
+    () => meetings.find((meeting) => meeting.scheduled_for >= currentTime) ?? meetings[0] ?? null,
+    [currentTime, meetings],
+  );
 
   useEffect(() => {
-    loadClub();
+    if (!id) return;
+    const clubId = id;
+    let isMounted = true;
+
+    async function loadClub() {
+      try {
+        const [clubData, memberData, bookData, meetingData, historyData] = await Promise.all([
+          clubService.get(clubId),
+          clubService.members(clubId),
+          bookService.listByClub(clubId),
+          meetingService.listByClub(clubId),
+          bookService.history(clubId),
+        ]);
+        if (!isMounted) return;
+        setClub(clubData);
+        setMembers(memberData);
+        setBooks(bookData);
+        setMeetings(meetingData);
+        setHistory(historyData);
+        setCurrentTime(new Date().toISOString());
+      } catch (err) {
+        if (isMounted) {
+          setFeedback(getErrorMessage(err));
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      }
+    }
+
+    void loadClub();
+
+    return () => {
+      isMounted = false;
+    };
   }, [id]);
 
   async function handleCreateBook(event: FormEvent<HTMLFormElement>) {
@@ -58,16 +84,15 @@ export function ClubDetailsPage() {
     setFeedback("");
 
     try {
-      const book = await bookService.create(id, { title, author, description, status });
-      setBooks((current) => [book, ...current]);
+      await bookService.create(id, { title, author, description, status });
+      const [updatedBooks, updatedHistory] = await Promise.all([bookService.listByClub(id), bookService.history(id)]);
+      setBooks(updatedBooks);
+      setHistory(updatedHistory);
       setTitle("");
       setAuthor("");
       setDescription("");
       setStatus("planejado");
       setFeedback("Livro cadastrado no clube.");
-      if (book.status === "concluido") {
-        setHistory(await bookService.history(id));
-      }
     } catch (err) {
       setFeedback(getErrorMessage(err));
     }
@@ -89,9 +114,14 @@ export function ClubDetailsPage() {
           <h1>{club.name}</h1>
           <p>{club.description}</p>
         </div>
-        <Link className="button-link secondary" to="/dashboard">
-          Voltar
-        </Link>
+        <div className="inline-actions">
+          <Link className="button-link secondary" to="/dashboard">
+            Voltar
+          </Link>
+          <Link className="button-link" to={`/clubs/${club.id}/meetings`}>
+            Ver encontros
+          </Link>
+        </div>
       </section>
 
       {feedback && <p className="feedback">{feedback}</p>}
@@ -106,6 +136,10 @@ export function ClubDetailsPage() {
           <strong>{books.length}</strong>
         </div>
         <div>
+          <span>Encontros planejados</span>
+          <strong>{meetings.length}</strong>
+        </div>
+        <div>
           <span>Perfil no clube</span>
           <strong>{club.current_user_role === "admin" ? "Admin" : "Membro"}</strong>
         </div>
@@ -118,10 +152,33 @@ export function ClubDetailsPage() {
             <article className="compact-card">
               <h3>{currentBook.title}</h3>
               <p>{currentBook.author}</p>
+              <span className="meta-label">{statusLabel[currentBook.status]}</span>
               <Link to={`/books/${currentBook.id}`}>Ver detalhes</Link>
             </article>
           ) : (
-            <p>Nenhum livro marcado como leitura atual.</p>
+            <div className="empty-state">
+              <p>Nenhum livro marcado como leitura atual.</p>
+              <span>Cadastre um livro ou atualize o status de uma leitura existente.</span>
+            </div>
+          )}
+        </section>
+
+        <section className="panel">
+          <h2>Próximo encontro</h2>
+          {nextMeeting ? (
+            <article className="compact-card">
+              <h3>{nextMeeting.title}</h3>
+              <p>{formatDate(nextMeeting.scheduled_for)}</p>
+              <span className="meta-label">{nextMeeting.location || "Local a definir"}</span>
+              {nextMeeting.book_id && (
+                <Link to={`/books/${nextMeeting.book_id}`}>Livro relacionado: {nextMeeting.book_title}</Link>
+              )}
+            </article>
+          ) : (
+            <div className="empty-state">
+              <p>Nenhum encontro cadastrado.</p>
+              <span>{isAdmin ? "Planeje o primeiro encontro do clube." : "Acompanhe aqui quando o próximo encontro for criado."}</span>
+            </div>
           )}
         </section>
 
@@ -165,25 +222,42 @@ export function ClubDetailsPage() {
         )}
 
         <section className="panel wide-panel">
-          <h2>Livros do clube</h2>
-          <div className="item-list">
-            {books.map((book) => (
-              <article className="list-card" key={book.id}>
-                <div>
-                  <h3>{book.title}</h3>
-                  <p>{book.author}</p>
-                  <span>{statusLabel[book.status]}</span>
-                </div>
-                <Link className="button-link secondary" to={`/books/${book.id}`}>
-                  Detalhes
-                </Link>
-              </article>
-            ))}
+          <div className="section-header">
+            <div>
+              <h2>Livros do clube</h2>
+              <p>Acompanhe leituras em andamento, planejadas e concluídas.</p>
+            </div>
           </div>
+          {books.length ? (
+            <div className="item-list">
+              {books.map((book) => (
+                <article className="list-card" key={book.id}>
+                  <div>
+                    <h3>{book.title}</h3>
+                    <p>{book.author}</p>
+                    <span>{statusLabel[book.status]}</span>
+                  </div>
+                  <Link className="button-link secondary" to={`/books/${book.id}`}>
+                    Detalhes
+                  </Link>
+                </article>
+              ))}
+            </div>
+          ) : (
+            <div className="empty-state">
+              <p>Este clube ainda não possui livros cadastrados.</p>
+              <span>{isAdmin ? "Use o formulário acima para registrar a primeira leitura." : "Aguarde um administrador publicar a primeira obra."}</span>
+            </div>
+          )}
         </section>
 
         <section className="panel wide-panel">
-          <h2>Histórico de leituras</h2>
+          <div className="section-header">
+            <div>
+              <h2>Histórico de leituras</h2>
+              <p>Registros das obras já concluídas pelo grupo.</p>
+            </div>
+          </div>
           {history.length ? (
             <div className="item-list">
               {history.map((item) => (
@@ -197,7 +271,10 @@ export function ClubDetailsPage() {
               ))}
             </div>
           ) : (
-            <p>Ainda não há livros concluídos neste clube.</p>
+            <div className="empty-state">
+              <p>Ainda não há livros concluídos neste clube.</p>
+              <span>Assim que uma leitura for finalizada, ela aparecerá automaticamente aqui.</span>
+            </div>
           )}
         </section>
       </section>

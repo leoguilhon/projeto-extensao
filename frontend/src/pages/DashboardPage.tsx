@@ -11,19 +11,31 @@ export function DashboardPage() {
   const [feedback, setFeedback] = useState("");
   const [isLoading, setIsLoading] = useState(true);
 
-  async function loadClubs() {
-    setIsLoading(true);
-    try {
-      setClubs(await clubService.list());
-    } catch (err) {
-      setFeedback(getErrorMessage(err));
-    } finally {
-      setIsLoading(false);
-    }
-  }
-
   useEffect(() => {
-    loadClubs();
+    let isMounted = true;
+
+    async function loadClubs() {
+      try {
+        const clubData = await clubService.list();
+        if (isMounted) {
+          setClubs(clubData);
+        }
+      } catch (err) {
+        if (isMounted) {
+          setFeedback(getErrorMessage(err));
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      }
+    }
+
+    void loadClubs();
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   async function handleCreateClub(event: FormEvent<HTMLFormElement>) {
