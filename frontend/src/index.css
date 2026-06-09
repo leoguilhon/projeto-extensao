@@ -243,7 +243,7 @@ h3 {
 }
 
 .wide-panel {
-  grid-column: span 1;
+  grid-column: 1 / -1;
 }
 
 .item-list {
@@ -289,7 +289,7 @@ h3 {
 
 .stats-row {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   gap: 12px;
   margin-bottom: 18px;
 }
@@ -351,10 +351,131 @@ h3 {
   color: #a3362d;
 }
 
+.inline-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.section-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+.section-header p {
+  margin-bottom: 0;
+  color: #666058;
+}
+
+.stack-layout {
+  display: grid;
+  gap: 18px;
+}
+
+.empty-state {
+  display: grid;
+  gap: 4px;
+  border: 1px dashed #d7d1c7;
+  border-radius: 8px;
+  padding: 18px;
+  background: #fff;
+}
+
+.empty-state.compact {
+  padding: 14px;
+}
+
+.empty-state p,
+.empty-state span {
+  margin: 0;
+  color: #666058;
+}
+
+.notice-box {
+  border: 1px solid #d7d1c7;
+  border-radius: 8px;
+  padding: 16px;
+  background: #fff;
+  color: #4d4a45;
+}
+
+.meta-label,
+.comment-count {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: 999px;
+  padding: 6px 10px;
+  background: #efe7dc;
+  color: #6a5438;
+  font-size: 0.86rem;
+  font-weight: 800;
+}
+
+.meeting-card {
+  display: grid;
+  gap: 16px;
+}
+
+.meeting-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.meeting-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  color: #666058;
+  font-size: 0.94rem;
+}
+
+.comment-list {
+  display: grid;
+  gap: 10px;
+}
+
+.comment-card {
+  border: 1px solid #e4ded6;
+  border-radius: 8px;
+  padding: 14px;
+  background: #fff;
+}
+
+.comment-card p {
+  margin-bottom: 0;
+  color: #4d4a45;
+}
+
+.comment-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.comment-meta span {
+  color: #666058;
+  font-size: 0.85rem;
+}
+
+.comment-form {
+  margin-top: 8px;
+}
+
 @media (max-width: 780px) {
   .topbar,
   .page-heading,
-  .list-card {
+  .list-card,
+  .section-header,
+  .meeting-card-header,
+  .comment-meta {
     display: grid;
     grid-template-columns: 1fr;
   }

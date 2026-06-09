@@ -43,6 +43,31 @@ export interface Book {
   finished_at: string | null;
 }
 
+export interface Meeting {
+  id: number;
+  club_id: number;
+  title: string;
+  scheduled_for: string;
+  location: string;
+  agenda: string;
+  book_id: number | null;
+  book_title: string | null;
+  created_by: number;
+  created_at: string;
+  comment_count: number;
+}
+
+export interface Comment {
+  id: number;
+  club_id: number;
+  user_id: number;
+  user_name: string;
+  content: string;
+  created_at: string;
+  book_id: number | null;
+  meeting_id: number | null;
+}
+
 export interface ReadingHistoryItem {
   club_id: number;
   club_name: string;
