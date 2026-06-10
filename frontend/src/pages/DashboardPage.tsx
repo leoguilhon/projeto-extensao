@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import { Link } from "react-router-dom";
+import { Modal } from "../components/Modal";
 import { clubService, getErrorMessage } from "../services/api";
 import type { Club } from "../types";
 
@@ -10,6 +11,7 @@ export function DashboardPage() {
   const [description, setDescription] = useState("");
   const [feedback, setFeedback] = useState("");
   const [isLoading, setIsLoading] = useState(true);
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -48,6 +50,7 @@ export function DashboardPage() {
       setName("");
       setDescription("");
       setFeedback("Clube criado com sucesso.");
+      setIsCreateModalOpen(false);
     } catch (err) {
       setFeedback(getErrorMessage(err));
     }
@@ -72,23 +75,16 @@ export function DashboardPage() {
           <h1>Meus Clubes</h1>
           <p>Crie clubes, visualize grupos disponíveis e acompanhe sua participação.</p>
         </div>
+        <div className="inline-actions">
+          <button type="button" onClick={() => setIsCreateModalOpen(true)}>
+            Criar clube
+          </button>
+        </div>
       </section>
 
-      <section className="content-grid">
-        <form className="panel" onSubmit={handleCreateClub}>
-          <h2>Criar clube</h2>
-          <label>
-            Nome do clube
-            <input value={name} onChange={(event) => setName(event.target.value)} required />
-          </label>
-          <label>
-            Descrição
-            <textarea value={description} onChange={(event) => setDescription(event.target.value)} required />
-          </label>
-          <button type="submit">Criar clube</button>
-          {feedback && <p className="feedback">{feedback}</p>}
-        </form>
+      {feedback && <p className="feedback page-feedback">{feedback}</p>}
 
+      <section className="content-grid">
         <section className="panel wide-panel">
           <h2>Clubes disponíveis</h2>
           {isLoading ? (
@@ -119,6 +115,25 @@ export function DashboardPage() {
           )}
         </section>
       </section>
+
+      <Modal title="Criar clube" isOpen={isCreateModalOpen} onClose={() => setIsCreateModalOpen(false)}>
+        <form onSubmit={handleCreateClub}>
+          <label>
+            Nome do clube
+            <input value={name} onChange={(event) => setName(event.target.value)} required />
+          </label>
+          <label>
+            Descrição
+            <textarea value={description} onChange={(event) => setDescription(event.target.value)} required />
+          </label>
+          <div className="form-actions">
+            <button className="ghost-button" type="button" onClick={() => setIsCreateModalOpen(false)}>
+              Cancelar
+            </button>
+            <button type="submit">Criar clube</button>
+          </div>
+        </form>
+      </Modal>
     </main>
   );
 }

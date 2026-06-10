@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import type { FormEvent } from "react";
 import { Link, useParams } from "react-router-dom";
+import { Modal } from "../components/Modal";
 import { bookService, clubService, getErrorMessage, meetingService } from "../services/api";
 import type { Book, Club, ClubMember, Meeting, ReadingHistoryItem, ReadingStatus } from "../types";
 
@@ -31,6 +32,7 @@ export function ClubDetailsPage() {
   const [feedback, setFeedback] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [currentTime, setCurrentTime] = useState(() => new Date().toISOString());
+  const [isBookModalOpen, setIsBookModalOpen] = useState(false);
 
   const isAdmin = club?.current_user_role === "admin";
   const currentBook = useMemo(() => books.find((book) => book.status === "em_leitura"), [books]);
@@ -93,6 +95,7 @@ export function ClubDetailsPage() {
       setDescription("");
       setStatus("planejado");
       setFeedback("Livro cadastrado no clube.");
+      setIsBookModalOpen(false);
     } catch (err) {
       setFeedback(getErrorMessage(err));
     }
@@ -115,6 +118,11 @@ export function ClubDetailsPage() {
           <p>{club.description}</p>
         </div>
         <div className="inline-actions">
+          {isAdmin && (
+            <button type="button" onClick={() => setIsBookModalOpen(true)}>
+              Cadastrar livro
+            </button>
+          )}
           <Link className="button-link secondary" to="/dashboard">
             Voltar
           </Link>
@@ -124,7 +132,7 @@ export function ClubDetailsPage() {
         </div>
       </section>
 
-      {feedback && <p className="feedback">{feedback}</p>}
+      {feedback && <p className="feedback page-feedback">{feedback}</p>}
 
       <section className="stats-row">
         <div>
@@ -194,39 +202,17 @@ export function ClubDetailsPage() {
           </div>
         </section>
 
-        {isAdmin && (
-          <form className="panel" onSubmit={handleCreateBook}>
-            <h2>Cadastrar livro</h2>
-            <label>
-              Título
-              <input value={title} onChange={(event) => setTitle(event.target.value)} required />
-            </label>
-            <label>
-              Autor
-              <input value={author} onChange={(event) => setAuthor(event.target.value)} required />
-            </label>
-            <label>
-              Descrição
-              <textarea value={description} onChange={(event) => setDescription(event.target.value)} />
-            </label>
-            <label>
-              Situação
-              <select value={status} onChange={(event) => setStatus(event.target.value as ReadingStatus)}>
-                <option value="planejado">Planejado</option>
-                <option value="em_leitura">Em leitura</option>
-                <option value="concluido">Concluído</option>
-              </select>
-            </label>
-            <button type="submit">Cadastrar livro</button>
-          </form>
-        )}
-
         <section className="panel wide-panel">
           <div className="section-header">
             <div>
               <h2>Livros do clube</h2>
               <p>Acompanhe leituras em andamento, planejadas e concluídas.</p>
             </div>
+            {isAdmin && (
+              <button type="button" onClick={() => setIsBookModalOpen(true)}>
+                Cadastrar livro
+              </button>
+            )}
           </div>
           {books.length ? (
             <div className="item-list">
@@ -246,7 +232,7 @@ export function ClubDetailsPage() {
           ) : (
             <div className="empty-state">
               <p>Este clube ainda não possui livros cadastrados.</p>
-              <span>{isAdmin ? "Use o formulário acima para registrar a primeira leitura." : "Aguarde um administrador publicar a primeira obra."}</span>
+              <span>{isAdmin ? "Use o botão Cadastrar livro para registrar a primeira leitura." : "Aguarde um administrador publicar a primeira obra."}</span>
             </div>
           )}
         </section>
@@ -278,6 +264,37 @@ export function ClubDetailsPage() {
           )}
         </section>
       </section>
+
+      <Modal title="Cadastrar livro" isOpen={isBookModalOpen} onClose={() => setIsBookModalOpen(false)}>
+        <form onSubmit={handleCreateBook}>
+          <label>
+            Título
+            <input value={title} onChange={(event) => setTitle(event.target.value)} required />
+          </label>
+          <label>
+            Autor
+            <input value={author} onChange={(event) => setAuthor(event.target.value)} required />
+          </label>
+          <label>
+            Descrição
+            <textarea value={description} onChange={(event) => setDescription(event.target.value)} />
+          </label>
+          <label>
+            Situação
+            <select value={status} onChange={(event) => setStatus(event.target.value as ReadingStatus)}>
+              <option value="planejado">Planejado</option>
+              <option value="em_leitura">Em leitura</option>
+              <option value="concluido">Concluído</option>
+            </select>
+          </label>
+          <div className="form-actions">
+            <button className="ghost-button" type="button" onClick={() => setIsBookModalOpen(false)}>
+              Cancelar
+            </button>
+            <button type="submit">Cadastrar livro</button>
+          </div>
+        </form>
+      </Modal>
     </main>
   );
 }

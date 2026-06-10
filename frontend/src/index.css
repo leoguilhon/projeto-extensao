@@ -347,6 +347,10 @@ h3 {
   font-weight: 700;
 }
 
+.page-feedback {
+  margin-bottom: 18px;
+}
+
 .feedback.error {
   color: #a3362d;
 }
@@ -467,6 +471,57 @@ h3 {
 
 .comment-form {
   margin-top: 8px;
+}
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgb(32 33 36 / 54%);
+}
+
+.modal-frame {
+  width: min(100%, 560px);
+  max-height: min(720px, calc(100vh - 48px));
+  overflow: auto;
+  border: 1px solid #e1dbd2;
+  border-radius: 8px;
+  padding: 22px;
+  background: #fffaf3;
+  box-shadow: 0 24px 70px rgb(35 31 25 / 24%);
+}
+
+.modal-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+.modal-header h2 {
+  margin-bottom: 0;
+}
+
+.icon-button {
+  width: 36px;
+  min-width: 36px;
+  min-height: 36px;
+  padding: 0;
+  border: 1px solid #d7d1c7;
+  background: #fff;
+  color: #4d4a45;
+}
+
+.form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 4px;
 }
 
 @media (max-width: 780px) {

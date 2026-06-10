@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import type { FormEvent } from "react";
 import { Link, useParams } from "react-router-dom";
+import { Modal } from "../components/Modal";
 import { bookService, clubService, getErrorMessage, meetingService } from "../services/api";
 import type { Book, Club, Comment, Meeting } from "../types";
 
@@ -26,6 +27,7 @@ export function MeetingsPage() {
   const [feedback, setFeedback] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [currentTime, setCurrentTime] = useState(() => new Date().toISOString());
+  const [isMeetingModalOpen, setIsMeetingModalOpen] = useState(false);
 
   const isAdmin = club?.current_user_role === "admin";
   const upcomingMeetings = useMemo(
@@ -108,6 +110,7 @@ export function MeetingsPage() {
       setAgenda("");
       setBookId("");
       setFeedback("Encontro criado com sucesso.");
+      setIsMeetingModalOpen(false);
     } catch (err) {
       setFeedback(getErrorMessage(err));
     }
@@ -215,13 +218,18 @@ export function MeetingsPage() {
           <p>Planeje reuniões do clube, vincule livros às conversas e registre comentários simples de cada encontro.</p>
         </div>
         <div className="inline-actions">
+          {isAdmin && (
+            <button type="button" onClick={() => setIsMeetingModalOpen(true)}>
+              Criar encontro
+            </button>
+          )}
           <Link className="button-link secondary" to={`/clubs/${club.id}`}>
             Voltar ao clube
           </Link>
         </div>
       </section>
 
-      {feedback && <p className="feedback">{feedback}</p>}
+      {feedback && <p className="feedback page-feedback">{feedback}</p>}
 
       <section className="stats-row">
         <div>
@@ -242,69 +250,31 @@ export function MeetingsPage() {
         </div>
       </section>
 
-      <section className="content-grid">
-        <section className="panel">
-          <h2>Novo encontro</h2>
-          {isAdmin ? (
-            <form onSubmit={handleCreateMeeting}>
-              <label>
-                Título
-                <input value={title} onChange={(event) => setTitle(event.target.value)} required />
-              </label>
-              <label>
-                Data e hora
-                <input
-                  type="datetime-local"
-                  value={scheduledFor}
-                  onChange={(event) => setScheduledFor(event.target.value)}
-                  required
-                />
-              </label>
-              <label>
-                Local
-                <input value={location} onChange={(event) => setLocation(event.target.value)} placeholder="Ex.: Google Meet, biblioteca, café" />
-              </label>
-              <label>
-                Livro relacionado
-                <select value={bookId} onChange={(event) => setBookId(event.target.value)}>
-                  <option value="">Sem vínculo específico</option>
-                  {books.map((book) => (
-                    <option key={book.id} value={book.id}>
-                      {book.title}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label>
-                Pauta
-                <textarea
-                  value={agenda}
-                  onChange={(event) => setAgenda(event.target.value)}
-                  placeholder="Defina os capítulos, decisões ou temas que devem orientar a conversa."
-                />
-              </label>
-              <button type="submit">Criar encontro</button>
-            </form>
-          ) : (
-            <div className="notice-box">
-              Apenas administradores do clube podem cadastrar novos encontros. Como membro, você ainda pode acompanhar e comentar as discussões.
-            </div>
-          )}
-        </section>
+      {!isAdmin && (
+        <div className="notice-box page-feedback">
+          Apenas administradores do clube podem cadastrar novos encontros. Como membro, você ainda pode acompanhar e comentar as discussões.
+        </div>
+      )}
 
+      <section className="content-grid">
         <section className="panel wide-panel">
           <div className="section-header">
             <div>
               <h2>Próximos encontros</h2>
               <p>Organização das próximas leituras e debates do clube.</p>
             </div>
+            {isAdmin && (
+              <button type="button" onClick={() => setIsMeetingModalOpen(true)}>
+                Criar encontro
+              </button>
+            )}
           </div>
           {upcomingMeetings.length ? (
             <div className="item-list">{upcomingMeetings.map(renderMeetingCard)}</div>
           ) : (
             <div className="empty-state">
               <p>Nenhum próximo encontro planejado.</p>
-              <span>{isAdmin ? "Cadastre um encontro para alinhar a próxima etapa da leitura." : "Aguarde o planejamento do próximo encontro do clube."}</span>
+              <span>{isAdmin ? "Use o botão Criar encontro para alinhar a próxima etapa da leitura." : "Aguarde o planejamento do próximo encontro do clube."}</span>
             </div>
           )}
         </section>
@@ -326,6 +296,53 @@ export function MeetingsPage() {
           )}
         </section>
       </section>
+
+      <Modal title="Criar encontro" isOpen={isMeetingModalOpen} onClose={() => setIsMeetingModalOpen(false)}>
+        <form onSubmit={handleCreateMeeting}>
+          <label>
+            Título
+            <input value={title} onChange={(event) => setTitle(event.target.value)} required />
+          </label>
+          <label>
+            Data e hora
+            <input
+              type="datetime-local"
+              value={scheduledFor}
+              onChange={(event) => setScheduledFor(event.target.value)}
+              required
+            />
+          </label>
+          <label>
+            Local
+            <input value={location} onChange={(event) => setLocation(event.target.value)} placeholder="Ex.: Google Meet, biblioteca, café" />
+          </label>
+          <label>
+            Livro relacionado
+            <select value={bookId} onChange={(event) => setBookId(event.target.value)}>
+              <option value="">Sem vínculo específico</option>
+              {books.map((book) => (
+                <option key={book.id} value={book.id}>
+                  {book.title}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            Pauta
+            <textarea
+              value={agenda}
+              onChange={(event) => setAgenda(event.target.value)}
+              placeholder="Defina os capítulos, decisões ou temas que devem orientar a conversa."
+            />
+          </label>
+          <div className="form-actions">
+            <button className="ghost-button" type="button" onClick={() => setIsMeetingModalOpen(false)}>
+              Cancelar
+            </button>
+            <button type="submit">Criar encontro</button>
+          </div>
+        </form>
+      </Modal>
     </main>
   );
 }
