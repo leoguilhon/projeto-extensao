@@ -1,6 +1,6 @@
 from dataclasses import dataclass, field
 
-from app.models.entities import BookRecord, ClubRecord, ClubRole, CommentRecord, MeetingRecord, UserRecord
+from app.models.entities import BookRecord, ClubRecord, ClubRole, CommentRecord, MeetingRecord, TokenSession, UserRecord
 
 
 @dataclass
@@ -14,7 +14,7 @@ class MemoryStore:
     comments: dict[int, CommentRecord] = field(default_factory=dict)
     favorite_clubs: dict[int, set[int]] = field(default_factory=dict)
     book_likes: dict[int, set[int]] = field(default_factory=dict)
-    tokens: dict[str, int] = field(default_factory=dict)
+    tokens: dict[str, TokenSession] = field(default_factory=dict)
     next_user_id: int = 1
     next_club_id: int = 1
     next_book_id: int = 1
@@ -45,6 +45,23 @@ class MemoryStore:
         current = self.next_comment_id
         self.next_comment_id += 1
         return current
+
+    def reset(self) -> None:
+        self.users.clear()
+        self.clubs.clear()
+        self.club_members.clear()
+        self.books.clear()
+        self.meetings.clear()
+        self.meeting_attendees.clear()
+        self.comments.clear()
+        self.favorite_clubs.clear()
+        self.book_likes.clear()
+        self.tokens.clear()
+        self.next_user_id = 1
+        self.next_club_id = 1
+        self.next_book_id = 1
+        self.next_meeting_id = 1
+        self.next_comment_id = 1
 
 
 store = MemoryStore()

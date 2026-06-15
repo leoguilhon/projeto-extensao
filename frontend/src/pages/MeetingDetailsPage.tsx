@@ -19,6 +19,7 @@ export function MeetingDetailsPage() {
   const { id, meetingId } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const [currentTime] = useState(() => new Date().toISOString());
   const [club, setClub] = useState<Club | null>(null);
   const [meeting, setMeeting] = useState<Meeting | null>(null);
   const [books, setBooks] = useState<Book[]>([]);
@@ -41,8 +42,8 @@ export function MeetingDetailsPage() {
   const isAdmin = club?.current_user_role === "admin";
   const isUpcoming = useMemo(() => {
     if (!meeting) return false;
-    return new Date(meeting.scheduled_for).getTime() >= Date.now();
-  }, [meeting]);
+    return meeting.scheduled_for >= currentTime;
+  }, [currentTime, meeting]);
   const isAttendanceConfirmed = useMemo(
     () => Boolean(user && attendees.some((attendee) => attendee.user_id === user.id)),
     [attendees, user],

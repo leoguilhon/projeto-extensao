@@ -3,6 +3,7 @@ from datetime import datetime
 from fastapi import HTTPException, status
 
 from app.core.time_utils import normalize_datetime, now_iso
+from app.core.validation import validate_optional_text, validate_required_text
 from app.db.memory import store
 from app.models.entities import MeetingRecord
 from app.schemas.meetings import MeetingAttendeePublic, MeetingPublic
@@ -13,7 +14,7 @@ from app.services.comments import count_meeting_comments
 def get_meeting_or_404(meeting_id: int) -> MeetingRecord:
     meeting = store.meetings.get(meeting_id)
     if not meeting:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Encontro não encontrado.")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Encontro nao encontrado.")
     return meeting
 
 
@@ -59,13 +60,16 @@ def create_meeting(
     if book_id is not None:
         ensure_book_belongs_to_club(book_id, club_id)
 
+    normalized_title = validate_required_text(title, "Titulo do encontro", min_length=3, max_length=120)
+    normalized_location = validate_optional_text(location, "Local do encontro", max_length=120)
+    normalized_agenda = validate_optional_text(agenda, "Pauta do encontro", max_length=500)
     meeting: MeetingRecord = {
         "id": store.consume_meeting_id(),
         "club_id": club_id,
-        "title": title,
+        "title": normalized_title,
         "scheduled_for": normalize_datetime(scheduled_for),
-        "location": location,
-        "agenda": agenda,
+        "location": normalized_location,
+        "agenda": normalized_agenda,
         "book_id": book_id,
         "created_by": created_by,
         "created_at": now_iso(),
@@ -85,10 +89,10 @@ def update_meeting(
     if book_id is not None:
         ensure_book_belongs_to_club(book_id, meeting["club_id"])
 
-    meeting["title"] = title
+    meeting["title"] = validate_required_text(title, "Titulo do encontro", min_length=3, max_length=120)
     meeting["scheduled_for"] = normalize_datetime(scheduled_for)
-    meeting["location"] = location
-    meeting["agenda"] = agenda
+    meeting["location"] = validate_optional_text(location, "Local do encontro", max_length=120)
+    meeting["agenda"] = validate_optional_text(agenda, "Pauta do encontro", max_length=500)
     meeting["book_id"] = book_id
     return meeting
 

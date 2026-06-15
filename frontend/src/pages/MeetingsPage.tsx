@@ -164,7 +164,7 @@ export function MeetingsPage() {
     <main className="shell">
       <section className="page-heading page-heading-with-actions">
         <div>
-          <p className="eyebrow">Semana 13</p>
+          <p className="eyebrow">Agenda do clube</p>
           <div className="page-heading-row">
             <h1>Encontros do {club.name}</h1>
             <div className="inline-actions">

@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.router import api_router
-from app.core.config import API_TITLE, CORS_ORIGINS
+from app.core.config import API_TITLE, CORS_ORIGINS, ENABLE_SEED_DATA
 from app.services.seed import seed_data
 
 
@@ -19,5 +19,6 @@ def create_app() -> FastAPI:
     return application
 
 
-seed_data()
+if ENABLE_SEED_DATA:
+    seed_data()
 app = create_app()

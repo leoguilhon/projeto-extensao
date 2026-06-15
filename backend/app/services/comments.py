@@ -1,4 +1,7 @@
+from fastapi import HTTPException, status
+
 from app.core.time_utils import now_iso
+from app.core.validation import validate_required_text
 from app.db.memory import store
 from app.models.entities import CommentRecord
 from app.schemas.comments import CommentPublic
@@ -19,11 +22,18 @@ def create_comment(
     book_id: int | None = None,
     meeting_id: int | None = None,
 ) -> CommentRecord:
+    if book_id is None and meeting_id is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Comentario deve estar vinculado a um livro ou encontro.",
+        )
+
+    normalized_content = validate_required_text(content, "Comentario", min_length=2, max_length=500)
     comment: CommentRecord = {
         "id": store.consume_comment_id(),
         "club_id": club_id,
         "user_id": user_id,
-        "content": content,
+        "content": normalized_content,
         "created_at": now_iso(),
         "book_id": book_id,
         "meeting_id": meeting_id,

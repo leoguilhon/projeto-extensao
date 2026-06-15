@@ -1,6 +1,7 @@
 from fastapi import HTTPException, status
 
 from app.core.time_utils import now_iso
+from app.core.validation import validate_optional_text, validate_required_text
 from app.db.memory import store
 from app.models.entities import BookRecord, ReadingStatus
 from app.schemas.books import BookPublic, ReadingHistoryItem
@@ -19,7 +20,7 @@ def to_book_public(book: BookRecord, current_user_id: int | None = None) -> Book
 def get_book_or_404(book_id: int) -> BookRecord:
     book = store.books.get(book_id)
     if not book:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Livro não encontrado.")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Livro nao encontrado.")
     return book
 
 
@@ -28,7 +29,7 @@ def ensure_book_belongs_to_club(book_id: int, club_id: int) -> BookRecord:
     if book["club_id"] != club_id:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="O livro informado não pertence a este clube.",
+            detail="O livro informado nao pertence a este clube.",
         )
     return book
 
@@ -49,12 +50,15 @@ def sorted_club_books(club_id: int) -> list[BookRecord]:
 
 
 def create_book(club_id: int, title: str, author: str, description: str, status_value: ReadingStatus, added_by: int) -> BookRecord:
+    normalized_title = validate_required_text(title, "Titulo do livro", min_length=2, max_length=120)
+    normalized_author = validate_required_text(author, "Autor", min_length=2, max_length=100)
+    normalized_description = validate_optional_text(description, "Descricao do livro", max_length=500)
     book: BookRecord = {
         "id": store.consume_book_id(),
         "club_id": club_id,
-        "title": title,
-        "author": author,
-        "description": description,
+        "title": normalized_title,
+        "author": normalized_author,
+        "description": normalized_description,
         "status": status_value,
         "added_by": added_by,
         "created_at": now_iso(),

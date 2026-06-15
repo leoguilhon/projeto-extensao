@@ -73,10 +73,12 @@ export function BookDetailsPage() {
   async function handleAddComment(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!id) return;
+    const content = comment.trim();
+    if (!content) return;
     setFeedback("");
 
     try {
-      const newComment = await bookService.addComment(id, comment);
+      const newComment = await bookService.addComment(id, content);
       setComments((current) => [...current, newComment]);
       setComment("");
       setFeedback("Comentário publicado no livro.");

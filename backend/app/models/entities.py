@@ -13,6 +13,11 @@ class UserRecord(TypedDict):
     bio: str
 
 
+class TokenSession(TypedDict):
+    user_id: int
+    expires_at: str
+
+
 class ClubRecord(TypedDict):
     id: int
     name: str

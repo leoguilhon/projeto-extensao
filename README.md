@@ -1,193 +1,121 @@
 # LendoJuntos
 
-Aplicação web desenvolvida como Projeto de Extensão com o objetivo de apoiar a organização de clubes de leitura, centralizando informações sobre membros, livros, encontros e interações em uma única plataforma.
+Aplicacao web desenvolvida como Projeto de Extensao para apoiar a organizacao de clubes do livro em um unico ambiente. O sistema concentra clubes, livros, encontros, confirmacoes de presenca, comentarios e historico de leitura.
 
-## Objetivo do projeto
+## Visao geral
 
-O LendoJuntos busca oferecer uma solução simples e organizada para clubes do livro que hoje dependem de ferramentas genéricas, como grupos de mensagens, planilhas e redes sociais, para conduzir suas atividades. A proposta é reunir, em um único sistema, funcionalidades voltadas à criação de clubes, gerenciamento de leituras, organização de encontros e acompanhamento das interações entre participantes.
+O MVP foi pensado para grupos que hoje dependem de conversas dispersas, planilhas e redes sociais genericas para organizar leituras coletivas. O foco do projeto e oferecer uma experiencia simples para:
 
-## Stack
+- cadastrar e autenticar usuarios
+- criar e administrar clubes de leitura
+- ingressar em clubes e acompanhar membros
+- cadastrar livros e manter apenas uma leitura ativa por clube
+- planejar encontros e registrar presencas
+- comentar livros e encontros
+- consultar historico de leituras concluidas
 
-- Frontend: React + TypeScript + Vite
+## Stack atual
+
+- Frontend: React 19 + TypeScript + Vite
 - Backend: FastAPI
-- Banco de dados: PostgreSQL
-- Autenticação: JWT
+- Persistencia: armazenamento em memoria durante a execucao
+- Autenticacao: token Bearer opaco com expiracao configuravel
+- Empacotamento: Dockerfiles para frontend e backend + `docker-compose.yml`
 
-## Estrutura do projeto
+## Estrutura
 
 ```txt
-lendojuntos/
-├── frontend/   # interface da aplicação
-├── backend/    # API e regras de negócio
-├── docs/       # documentação acadêmica e artefatos de modelagem
-├── .env.example
-├── .gitignore
-├── docker-compose.yml
-└── README.md
+projeto-extensao/
+|-- backend/
+|   |-- app/
+|   |-- tests/
+|   |-- Dockerfile
+|   `-- requirements.txt
+|-- frontend/
+|   |-- src/
+|   |-- public/
+|   |-- Dockerfile
+|   `-- nginx.conf
+|-- docs/
+|-- .env.example
+`-- docker-compose.yml
 ```
 
-## Estrutura das principais pastas
-
-### Frontend
-Responsável pela interface da aplicação, navegação entre páginas e consumo da API.
+## Como executar localmente
 
 ### Backend
-Responsável pelas regras de negócio, autenticação, validação de dados e comunicação com o banco.
 
-### Docs
-Responsável por armazenar documentos acadêmicos, diagramas, matrizes, wireframes e demais artefatos do projeto.
-
-## Funcionalidades previstas no MVP
-
-- cadastro e autenticação de usuários
-- criação e gerenciamento de clubes de leitura
-- ingresso de usuários em clubes
-- cadastro e organização de livros por clube
-- registro de encontros
-- visualização de histórico de leituras
-- comentários simples sobre livros ou discussões
-
-## Requisitos para execução
-
-Antes de iniciar, é necessário ter instalado no ambiente:
-
-- Node.js
-- Python 3
-- Docker Desktop
-- Git
-
-## Como rodar o projeto
-
-### 1. Clonar o repositório
-
-```bash
-git clone <URL_DO_REPOSITORIO>
-cd projeto-extensao
-```
-
-### 2. Subir o banco de dados
-
-Na raiz do projeto:
-
-```bash
-docker compose up -d
-```
-
-### 3. Rodar o frontend
-
-Abra um terminal na raiz do projeto e execute:
-
-```bash
-cd frontend
-npm install
-npm run dev
-```
-
-O frontend ficará disponível, em geral, em:
-
-```txt
-http://localhost:5173
-```
-
-### 4. Rodar o backend
-
-Abra outro terminal na raiz do projeto e execute:
-
-```bash
+```powershell
 cd backend
 .venv\Scripts\Activate.ps1
 pip install -r requirements.txt
 uvicorn app.main:app --reload
 ```
 
-A API ficará disponível em:
+API disponivel em `http://127.0.0.1:8000`.
 
-```txt
-http://127.0.0.1:8000
-```
+### Frontend
 
-Documentação automática da API:
-
-```txt
-http://127.0.0.1:8000/docs
-```
-
-### 5. Rodar frontend e backend ao mesmo tempo
-
-Para executar a aplicação localmente, mantenha dois terminais abertos:
-
-#### Terminal 1 — Frontend
-```bash
+```powershell
 cd frontend
 npm install
 npm run dev
 ```
 
-#### Terminal 2 — Backend
-```bash
-cd backend
-.venv\Scripts\Activate.ps1
-pip install -r requirements.txt
-uvicorn app.main:app --reload
+Interface disponivel em `http://127.0.0.1:5173`.
+
+### Com Docker
+
+```powershell
+docker compose up --build
 ```
 
-#### Terminal 3 — Banco de dados
-Se o banco ainda não estiver rodando:
-```bash
-docker compose up -d
-```
+Frontend publicado em `http://127.0.0.1:4173` e backend em `http://127.0.0.1:8000`.
 
-## Variáveis de ambiente
+## Variaveis de ambiente
 
-O projeto utiliza um arquivo `.env.example` como referência para configuração inicial.
-
-Exemplo:
+Use `.env.example` como base:
 
 ```env
-DATABASE_URL=postgresql+psycopg://postgres:postgres@localhost:5432/lendojuntos
-
-JWT_SECRET_KEY=trocar_essa_chave
-JWT_ALGORITHM=HS256
-ACCESS_TOKEN_EXPIRE_MINUTES=60
-
+API_TITLE=LendoJuntos API
+ACCESS_TOKEN_EXPIRE_MINUTES=480
+ENABLE_SEED_DATA=true
+CORS_ORIGINS=http://localhost:5173,http://127.0.0.1:5173,http://localhost:4173,http://127.0.0.1:4173
 VITE_API_BASE_URL=http://localhost:8000
 ```
 
-## Estado atual do projeto
+## Dados de demonstracao
 
-Até o momento, o projeto conta com:
+Quando `ENABLE_SEED_DATA=true`, a API sobe com usuarios e um clube de exemplo. Conta principal:
 
-- estrutura inicial do frontend criada com React, TypeScript e Vite
-- estrutura inicial do backend criada com FastAPI
-- configuração inicial do PostgreSQL com Docker
-- organização inicial do repositório
-- definição de documentação e artefatos de modelagem
+- E-mail: `ana@lendojuntos.test`
+- Senha: `123456`
 
-## Próximos passos
+## Validacao e testes
 
-As próximas etapas de desenvolvimento incluem:
+Comandos utilizados para validacao local:
 
-- implementação da autenticação
-- criação do módulo de clubes
-- criação do módulo de livros
-- implementação do módulo de encontros
-- desenvolvimento do sistema de comentários
-- integração entre frontend, backend e banco de dados
+```powershell
+cd frontend
+npm run lint
+npm run build
+```
 
-## Documentação
+```powershell
+cd backend
+.venv\Scripts\Activate.ps1
+python -m unittest discover -s tests -v
+python -m py_compile app\main.py
+```
 
-A pasta `docs/` reúne os materiais produzidos ao longo do Projeto de Extensão, incluindo:
+## Documentacao complementar
 
-- cronograma de desenvolvimento
-- registro de horas
-- diagramas de modelagem
-- wireframes
-- documentos acadêmicos de acompanhamento
+- Cronograma academico: `docs/academico/`
+- Artefatos de modelagem: `docs/artefatos-modelagem/`
+- Documentacao tecnica detalhada: [docs/documentacao-tecnica.md](docs/documentacao-tecnica.md)
 
-## Autor
+## Limitacoes do MVP
 
-Leonardo Guilhon
-
-## Licença
-
-Este projeto foi desenvolvido para fins acadêmicos como parte do Projeto de Extensão.
+- Os dados ficam em memoria durante a execucao da API.
+- A autenticacao usa token de sessao simples, adequada ao escopo academico do MVP.
+- O deploy containerizado foi preparado, mas depende da instalacao local do Docker para execucao.
