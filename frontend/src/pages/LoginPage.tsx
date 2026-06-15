@@ -7,8 +7,8 @@ import { getErrorMessage } from "../services/api";
 export function LoginPage() {
   const navigate = useNavigate();
   const { login } = useAuth();
-  const [email, setEmail] = useState("ana@lendojuntos.test");
-  const [password, setPassword] = useState("123456");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -66,12 +66,26 @@ export function LoginPage() {
           <form onSubmit={handleSubmit}>
             <label>
               E-mail
-              <input type="email" value={email} onChange={(event) => setEmail(event.target.value)} required />
+              <input
+                type="email"
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
+                autoComplete="email"
+                placeholder="voce@exemplo.com"
+                required
+              />
             </label>
 
             <label>
               Senha
-              <input type="password" value={password} onChange={(event) => setPassword(event.target.value)} required />
+              <input
+                type="password"
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+                autoComplete="current-password"
+                placeholder="Digite sua senha"
+                required
+              />
             </label>
 
             {error && <p className="feedback error">{error}</p>}

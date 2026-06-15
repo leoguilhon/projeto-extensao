@@ -18,7 +18,7 @@ O MVP foi pensado para grupos que hoje dependem de conversas dispersas, planilha
 
 - Frontend: React 19 + TypeScript + Vite
 - Backend: FastAPI
-- Persistencia: armazenamento em memoria durante a execucao
+- Persistencia: PostgreSQL com SQLAlchemy
 - Autenticacao: token Bearer opaco com expiracao configuravel
 - Empacotamento: Dockerfiles para frontend e backend + `docker-compose.yml`
 
@@ -43,7 +43,15 @@ projeto-extensao/
 
 ## Como executar localmente
 
-### Backend
+### 1. Banco de dados
+
+```powershell
+docker compose up -d postgres
+```
+
+O PostgreSQL ficara disponivel em `127.0.0.1:5432` para a rede local e em `postgres:5432` dentro do Docker Compose.
+
+### 2. Backend
 
 ```powershell
 cd backend
@@ -54,7 +62,7 @@ uvicorn app.main:app --reload
 
 API disponivel em `http://127.0.0.1:8000`.
 
-### Frontend
+### 3. Frontend
 
 ```powershell
 cd frontend
@@ -64,13 +72,13 @@ npm run dev
 
 Interface disponivel em `http://127.0.0.1:5173`.
 
-### Com Docker
+### 4. Stack completa com Docker
 
 ```powershell
 docker compose up --build
 ```
 
-Frontend publicado em `http://127.0.0.1:4173` e backend em `http://127.0.0.1:8000`.
+Frontend publicado em `http://127.0.0.1:4173`, backend em `http://127.0.0.1:8000` e PostgreSQL em `127.0.0.1:5432`.
 
 ## Variaveis de ambiente
 
@@ -78,11 +86,19 @@ Use `.env.example` como base:
 
 ```env
 API_TITLE=LendoJuntos API
+POSTGRES_DB=lendojuntos
+POSTGRES_USER=postgres
+POSTGRES_PASSWORD=postgres
+DATABASE_URL=postgresql+psycopg://postgres:postgres@localhost:5432/lendojuntos
 ACCESS_TOKEN_EXPIRE_MINUTES=480
 ENABLE_SEED_DATA=true
 CORS_ORIGINS=http://localhost:5173,http://127.0.0.1:5173,http://localhost:4173,http://127.0.0.1:4173
 VITE_API_BASE_URL=http://localhost:8000
 ```
+
+## Persistencia
+
+Os dados de usuarios, clubes, livros, encontros, comentarios, favoritos, curtidas e tokens de autenticacao agora sao persistidos no PostgreSQL. O backend cria as tabelas automaticamente na inicializacao e, se `ENABLE_SEED_DATA=true`, carrega os dados de demonstracao apenas quando o banco ainda estiver vazio.
 
 ## Dados de demonstracao
 
@@ -116,6 +132,6 @@ python -m py_compile app\main.py
 
 ## Limitacoes do MVP
 
-- Os dados ficam em memoria durante a execucao da API.
+- O projeto ainda cria o schema automaticamente com SQLAlchemy; nao ha migrations versionadas com Alembic.
 - A autenticacao usa token de sessao simples, adequada ao escopo academico do MVP.
-- O deploy containerizado foi preparado, mas depende da instalacao local do Docker para execucao.
+- O deploy containerizado depende da instalacao local do Docker.

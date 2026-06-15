@@ -9,10 +9,16 @@ def now_iso() -> str:
     return now_utc().isoformat()
 
 
-def normalize_datetime(value: datetime) -> str:
+def normalize_datetime(value: datetime) -> datetime:
     if value.tzinfo is None:
         value = value.replace(tzinfo=timezone.utc)
-    return value.astimezone(timezone.utc).isoformat()
+    return value.astimezone(timezone.utc)
+
+
+def to_iso_datetime(value: datetime | None) -> str | None:
+    if value is None:
+        return None
+    return normalize_datetime(value).isoformat()
 
 
 def add_minutes(value: datetime, minutes: int) -> datetime:
@@ -20,4 +26,4 @@ def add_minutes(value: datetime, minutes: int) -> datetime:
 
 
 def parse_iso_datetime(value: str) -> datetime:
-    return datetime.fromisoformat(value)
+    return normalize_datetime(datetime.fromisoformat(value))

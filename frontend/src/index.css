@@ -539,6 +539,8 @@ p {
 .page-heading-with-actions,
 .meetings-page-heading {
   display: block;
+  position: relative;
+  z-index: 10;
 }
 
 .page-heading-row,
@@ -992,11 +994,18 @@ p {
   flex-wrap: wrap;
   align-items: center;
   gap: 12px;
+  position: relative;
+  z-index: 11;
 }
 
 .action-menu {
   position: relative;
   display: inline-block;
+  z-index: 12;
+}
+
+.action-menu[open] {
+  z-index: 40;
 }
 
 .action-menu summary {
@@ -1038,7 +1047,7 @@ p {
   position: absolute;
   top: calc(100% + 10px);
   right: 0;
-  z-index: 20;
+  z-index: 41;
   display: grid;
   min-width: 228px;
   gap: 6px;

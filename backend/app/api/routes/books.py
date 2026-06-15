@@ -1,7 +1,9 @@
 from fastapi import APIRouter, Depends, status
+from sqlalchemy.orm import Session
 
 from app.api.dependencies import current_user, require_admin, require_member
-from app.models.entities import UserRecord
+from app.db.models import User
+from app.db.session import get_db
 from app.schemas.books import BookCreate, BookPublic, BookStatusUpdate, ReadingHistoryItem
 from app.schemas.comments import CommentCreate, CommentPublic
 from app.schemas.meetings import MeetingPublic
@@ -24,73 +26,73 @@ router = APIRouter(tags=["books"])
 
 
 @router.get("/clubs/{club_id}/books", response_model=list[BookPublic])
-def get_club_books(club_id: int, user: UserRecord = Depends(current_user)):
-    get_club_or_404(club_id)
-    require_member(club_id, user)
-    return list_books_by_club(club_id, user["id"])
+def get_club_books(club_id: int, user: User = Depends(current_user), db: Session = Depends(get_db)):
+    get_club_or_404(db, club_id)
+    require_member(club_id, user, db)
+    return list_books_by_club(db, club_id, user.id)
 
 
 @router.post("/clubs/{club_id}/books", response_model=BookPublic, status_code=status.HTTP_201_CREATED)
-def add_club_book(payload: BookCreate, club_id: int, user: UserRecord = Depends(current_user)):
-    get_club_or_404(club_id)
-    require_admin(club_id, user)
-    book = create_book(club_id, payload.title, payload.author, payload.description, payload.status, user["id"])
-    return to_book_public(book, user["id"])
+def add_club_book(payload: BookCreate, club_id: int, user: User = Depends(current_user), db: Session = Depends(get_db)):
+    get_club_or_404(db, club_id)
+    require_admin(club_id, user, db)
+    book = create_book(db, club_id, payload.title, payload.author, payload.description, payload.status, user.id)
+    return to_book_public(db, book, user.id)
 
 
 @router.get("/books/{book_id}", response_model=BookPublic)
-def get_book(book_id: int, user: UserRecord = Depends(current_user)):
-    book = get_book_or_404(book_id)
-    require_member(book["club_id"], user)
-    return to_book_public(book, user["id"])
+def get_book(book_id: int, user: User = Depends(current_user), db: Session = Depends(get_db)):
+    book = get_book_or_404(db, book_id)
+    require_member(book.club_id, user, db)
+    return to_book_public(db, book, user.id)
 
 
 @router.patch("/books/{book_id}/status", response_model=BookPublic)
-def patch_book_status(book_id: int, payload: BookStatusUpdate, user: UserRecord = Depends(current_user)):
-    book = get_book_or_404(book_id)
-    require_admin(book["club_id"], user)
-    updated_book = update_book_status(book, payload.status)
-    return to_book_public(updated_book, user["id"])
+def patch_book_status(book_id: int, payload: BookStatusUpdate, user: User = Depends(current_user), db: Session = Depends(get_db)):
+    book = get_book_or_404(db, book_id)
+    require_admin(book.club_id, user, db)
+    updated_book = update_book_status(db, book, payload.status)
+    return to_book_public(db, updated_book, user.id)
 
 
 @router.post("/books/{book_id}/like", response_model=BookPublic)
-def add_book_like(book_id: int, user: UserRecord = Depends(current_user)):
-    book = get_book_or_404(book_id)
-    require_member(book["club_id"], user)
-    return to_book_public(like_book(book, user["id"]), user["id"])
+def add_book_like(book_id: int, user: User = Depends(current_user), db: Session = Depends(get_db)):
+    book = get_book_or_404(db, book_id)
+    require_member(book.club_id, user, db)
+    return to_book_public(db, like_book(db, book, user.id), user.id)
 
 
 @router.delete("/books/{book_id}/like", response_model=BookPublic)
-def remove_book_like(book_id: int, user: UserRecord = Depends(current_user)):
-    book = get_book_or_404(book_id)
-    require_member(book["club_id"], user)
-    return to_book_public(unlike_book(book, user["id"]), user["id"])
+def remove_book_like(book_id: int, user: User = Depends(current_user), db: Session = Depends(get_db)):
+    book = get_book_or_404(db, book_id)
+    require_member(book.club_id, user, db)
+    return to_book_public(db, unlike_book(db, book, user.id), user.id)
 
 
 @router.get("/books/{book_id}/comments", response_model=list[CommentPublic])
-def get_book_comments(book_id: int, user: UserRecord = Depends(current_user)):
-    book = get_book_or_404(book_id)
-    require_member(book["club_id"], user)
-    return list_book_comments(book_id)
+def get_book_comments(book_id: int, user: User = Depends(current_user), db: Session = Depends(get_db)):
+    book = get_book_or_404(db, book_id)
+    require_member(book.club_id, user, db)
+    return list_book_comments(db, book_id)
 
 
 @router.post("/books/{book_id}/comments", response_model=CommentPublic, status_code=status.HTTP_201_CREATED)
-def add_book_comment(book_id: int, payload: CommentCreate, user: UserRecord = Depends(current_user)):
-    book = get_book_or_404(book_id)
-    require_member(book["club_id"], user)
-    comment = create_comment(book["club_id"], user["id"], payload.content, book_id=book_id)
+def add_book_comment(book_id: int, payload: CommentCreate, user: User = Depends(current_user), db: Session = Depends(get_db)):
+    book = get_book_or_404(db, book_id)
+    require_member(book.club_id, user, db)
+    comment = create_comment(db, book.club_id, user.id, payload.content, book_id=book_id)
     return to_comment_public(comment)
 
 
 @router.get("/books/{book_id}/meetings", response_model=list[MeetingPublic])
-def get_book_meetings(book_id: int, user: UserRecord = Depends(current_user)):
-    book = get_book_or_404(book_id)
-    require_member(book["club_id"], user)
-    return list_book_meetings(book_id)
+def get_book_meetings(book_id: int, user: User = Depends(current_user), db: Session = Depends(get_db)):
+    book = get_book_or_404(db, book_id)
+    require_member(book.club_id, user, db)
+    return list_book_meetings(db, book_id)
 
 
 @router.get("/clubs/{club_id}/reading-history", response_model=list[ReadingHistoryItem])
-def get_reading_history(club_id: int, user: UserRecord = Depends(current_user)):
-    get_club_or_404(club_id)
-    require_member(club_id, user)
-    return list_reading_history(club_id)
+def get_reading_history(club_id: int, user: User = Depends(current_user), db: Session = Depends(get_db)):
+    get_club_or_404(db, club_id)
+    require_member(club_id, user, db)
+    return list_reading_history(db, club_id)

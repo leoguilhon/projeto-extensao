@@ -1,32 +1,51 @@
+from sqlalchemy import func, select
+from sqlalchemy.orm import Session
+
 from fastapi import HTTPException, status
 
-from app.core.time_utils import now_iso
+from app.core.time_utils import now_utc, to_iso_datetime
 from app.core.validation import validate_optional_text, validate_required_text
-from app.db.memory import store
-from app.models.entities import BookRecord, ReadingStatus
+from app.db.models import Book, BookLike
+from app.models.entities import ReadingStatus
 from app.schemas.books import BookPublic, ReadingHistoryItem
 from app.services.clubs import get_club_or_404
 
 
-def to_book_public(book: BookRecord, current_user_id: int | None = None) -> BookPublic:
-    likes = store.book_likes.get(book["id"], set())
+def _status_order_value(status_value: str) -> int:
+    return {"em_leitura": 0, "planejado": 1, "concluido": 2}.get(status_value, 99)
+
+
+def to_book_public(db: Session, book: Book, current_user_id: int | None = None) -> BookPublic:
+    like_count = db.scalar(select(func.count()).select_from(BookLike).where(BookLike.book_id == book.id)) or 0
+    liked_by_current_user = False
+    if current_user_id is not None:
+        liked_by_current_user = db.get(BookLike, {"book_id": book.id, "user_id": current_user_id}) is not None
+
     return BookPublic(
-        **book,
-        like_count=len(likes),
-        liked_by_current_user=current_user_id in likes if current_user_id is not None else False,
+        id=book.id,
+        club_id=book.club_id,
+        title=book.title,
+        author=book.author,
+        description=book.description,
+        status=book.status,
+        added_by=book.added_by,
+        created_at=to_iso_datetime(book.created_at),
+        finished_at=to_iso_datetime(book.finished_at),
+        like_count=like_count,
+        liked_by_current_user=liked_by_current_user,
     )
 
 
-def get_book_or_404(book_id: int) -> BookRecord:
-    book = store.books.get(book_id)
+def get_book_or_404(db: Session, book_id: int) -> Book:
+    book = db.get(Book, book_id)
     if not book:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Livro nao encontrado.")
     return book
 
 
-def ensure_book_belongs_to_club(book_id: int, club_id: int) -> BookRecord:
-    book = get_book_or_404(book_id)
-    if book["club_id"] != club_id:
+def ensure_book_belongs_to_club(db: Session, book_id: int, club_id: int) -> Book:
+    book = get_book_or_404(db, book_id)
+    if book.club_id != club_id:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="O livro informado nao pertence a este clube.",
@@ -34,75 +53,90 @@ def ensure_book_belongs_to_club(book_id: int, club_id: int) -> BookRecord:
     return book
 
 
-def ensure_single_current_book(club_id: int, active_book_id: int) -> None:
-    for book in store.books.values():
-        if book["club_id"] == club_id and book["id"] != active_book_id and book["status"] == "em_leitura":
-            book["status"] = "planejado"
-            book["finished_at"] = None
+def ensure_single_current_book(db: Session, club_id: int, active_book_id: int) -> None:
+    books = db.scalars(select(Book).where(Book.club_id == club_id, Book.id != active_book_id, Book.status == "em_leitura")).all()
+    for book in books:
+        book.status = "planejado"
+        book.finished_at = None
 
 
-def sorted_club_books(club_id: int) -> list[BookRecord]:
-    status_order = {"em_leitura": 0, "planejado": 1, "concluido": 2}
-    return sorted(
-        (book for book in store.books.values() if book["club_id"] == club_id),
-        key=lambda item: (status_order[item["status"]], item["created_at"]),
-    )
+def sorted_club_books(db: Session, club_id: int) -> list[Book]:
+    books = db.scalars(select(Book).where(Book.club_id == club_id)).all()
+    return sorted(books, key=lambda item: (_status_order_value(item.status), item.created_at))
 
 
-def create_book(club_id: int, title: str, author: str, description: str, status_value: ReadingStatus, added_by: int) -> BookRecord:
+def create_book(
+    db: Session,
+    club_id: int,
+    title: str,
+    author: str,
+    description: str,
+    status_value: ReadingStatus,
+    added_by: int,
+) -> Book:
     normalized_title = validate_required_text(title, "Titulo do livro", min_length=2, max_length=120)
     normalized_author = validate_required_text(author, "Autor", min_length=2, max_length=100)
     normalized_description = validate_optional_text(description, "Descricao do livro", max_length=500)
-    book: BookRecord = {
-        "id": store.consume_book_id(),
-        "club_id": club_id,
-        "title": normalized_title,
-        "author": normalized_author,
-        "description": normalized_description,
-        "status": status_value,
-        "added_by": added_by,
-        "created_at": now_iso(),
-        "finished_at": now_iso() if status_value == "concluido" else None,
-    }
-    store.books[book["id"]] = book
+
+    book = Book(
+        club_id=club_id,
+        title=normalized_title,
+        author=normalized_author,
+        description=normalized_description,
+        status=status_value,
+        added_by=added_by,
+        created_at=now_utc(),
+        finished_at=now_utc() if status_value == "concluido" else None,
+    )
+    db.add(book)
+    db.flush()
     if status_value == "em_leitura":
-        ensure_single_current_book(club_id, book["id"])
+        ensure_single_current_book(db, club_id, book.id)
+    db.commit()
+    db.refresh(book)
     return book
 
 
-def update_book_status(book: BookRecord, status_value: ReadingStatus) -> BookRecord:
-    book["status"] = status_value
-    book["finished_at"] = now_iso() if status_value == "concluido" else None
+def update_book_status(db: Session, book: Book, status_value: ReadingStatus) -> Book:
+    book.status = status_value
+    book.finished_at = now_utc() if status_value == "concluido" else None
     if status_value == "em_leitura":
-        ensure_single_current_book(book["club_id"], book["id"])
+        ensure_single_current_book(db, book.club_id, book.id)
+    db.commit()
+    db.refresh(book)
     return book
 
 
-def like_book(book: BookRecord, user_id: int) -> BookRecord:
-    store.book_likes.setdefault(book["id"], set()).add(user_id)
+def like_book(db: Session, book: Book, user_id: int) -> Book:
+    if not db.get(BookLike, {"book_id": book.id, "user_id": user_id}):
+        db.add(BookLike(book_id=book.id, user_id=user_id))
+        db.commit()
     return book
 
 
-def unlike_book(book: BookRecord, user_id: int) -> BookRecord:
-    store.book_likes.setdefault(book["id"], set()).discard(user_id)
+def unlike_book(db: Session, book: Book, user_id: int) -> Book:
+    like = db.get(BookLike, {"book_id": book.id, "user_id": user_id})
+    if like:
+        db.delete(like)
+        db.commit()
     return book
 
 
-def list_books_by_club(club_id: int, current_user_id: int | None = None) -> list[BookPublic]:
-    return [to_book_public(book, current_user_id) for book in sorted_club_books(club_id)]
+def list_books_by_club(db: Session, club_id: int, current_user_id: int | None = None) -> list[BookPublic]:
+    return [to_book_public(db, book, current_user_id) for book in sorted_club_books(db, club_id)]
 
 
-def list_reading_history(club_id: int) -> list[ReadingHistoryItem]:
-    club = get_club_or_404(club_id)
+def list_reading_history(db: Session, club_id: int) -> list[ReadingHistoryItem]:
+    club = get_club_or_404(db, club_id)
     return [
         ReadingHistoryItem(
             club_id=club_id,
-            club_name=club["name"],
-            book_id=book["id"],
-            title=book["title"],
-            author=book["author"],
-            finished_at=book["finished_at"],
+            club_name=club.name,
+            book_id=book.id,
+            title=book.title,
+            author=book.author,
+            finished_at=to_iso_datetime(book.finished_at),
         )
-        for book in sorted_club_books(club_id)
-        if book["status"] == "concluido" and book["finished_at"]
+        for book in sorted_club_books(db, club_id)
+        if book.status == "concluido" and book.finished_at
     ]

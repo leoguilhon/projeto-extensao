@@ -35,6 +35,7 @@ DEFAULT_CORS_ORIGINS = [
 
 
 API_TITLE = os.getenv("API_TITLE", "LendoJuntos API")
+DATABASE_URL = os.getenv("DATABASE_URL", "postgresql+psycopg://postgres:postgres@localhost:5432/lendojuntos")
 ACCESS_TOKEN_EXPIRE_MINUTES = _parse_positive_int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES"), 480)
 ENABLE_SEED_DATA = _parse_bool(os.getenv("ENABLE_SEED_DATA"), True)
 CORS_ORIGINS = _parse_csv(os.getenv("CORS_ORIGINS"), DEFAULT_CORS_ORIGINS)
