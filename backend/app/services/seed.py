@@ -12,14 +12,38 @@ def seed_data() -> None:
     if store.users:
         return
 
-    ana = create_user("Ana Martins", "ana@lendojuntos.test", "123456", "Organizadora de clubes de leitura contemporânea.")
-    bia = create_user("Beatriz Lima", "bia@lendojuntos.test", "123456", "Participante interessada em romances clássicos.")
+    seed_users = [
+        ("Ana Martins", "ana@lendojuntos.test", "Organizadora de clubes de leitura contemporânea."),
+        ("Beatriz Lima", "bia@lendojuntos.test", "Participante interessada em romances clássicos."),
+        ("Caio Ferreira", "caio@lendojuntos.test", "Leitor de ficção científica e fantasia."),
+        ("Daniela Souza", "daniela@lendojuntos.test", "Gosta de literatura brasileira e debates em grupo."),
+        ("Eduardo Nunes", "eduardo@lendojuntos.test", "Acompanha leituras históricas e biografias."),
+        ("Fernanda Rocha", "fernanda@lendojuntos.test", "Interessada em romances contemporâneos."),
+        ("Gabriel Costa", "gabriel@lendojuntos.test", "Leitor frequente de clássicos e ensaios."),
+        ("Helena Barros", "helena@lendojuntos.test", "Participa de encontros literários virtuais."),
+        ("Igor Almeida", "igor@lendojuntos.test", "Gosta de discutir personagens e adaptação de obras."),
+        ("Juliana Castro", "juliana@lendojuntos.test", "Leitora de poesia, contos e literatura latino-americana."),
+        ("Karen Oliveira", "karen@lendojuntos.test", "Explora clubes para encontrar novas leituras."),
+        ("Lucas Pereira", "lucas@lendojuntos.test", "Prefere ficção policial e narrativas curtas."),
+        ("Mariana Gomes", "mariana@lendojuntos.test", "Acompanha metas pessoais de leitura."),
+        ("Nicolas Ribeiro", "nicolas@lendojuntos.test", "Curioso por livros de tecnologia e sociedade."),
+        ("Olivia Mendes", "olivia@lendojuntos.test", "Gosta de comentar leituras capítulo a capítulo."),
+        ("Paulo Henrique", "paulo@lendojuntos.test", "Leitor de não ficção e divulgação científica."),
+        ("Renata Dias", "renata@lendojuntos.test", "Interessada em literatura de autoria feminina."),
+        ("Sofia Martins", "sofia@lendojuntos.test", "Busca clubes para manter constância de leitura."),
+        ("Thiago Lopes", "thiago@lendojuntos.test", "Gosta de registrar impressões sobre livros."),
+        ("Vivian Cardoso", "vivian@lendojuntos.test", "Participa de discussões sobre clássicos modernos."),
+    ]
+    users = [create_user(name, email, "123456", bio) for name, email, bio in seed_users]
+    ana = users[0]
+    bia = users[1]
     clube = create_club(
         "Clube Literário Primavera",
         "Grupo voltado a leituras mensais, encontros virtuais e registro das discussões mais importantes.",
         ana["id"],
     )
-    store.club_members[clube["id"]][bia["id"]] = "membro"
+    for member in users[1:10]:
+        store.club_members[clube["id"]][member["id"]] = "membro"
 
     orgulho = create_book(
         clube["id"],

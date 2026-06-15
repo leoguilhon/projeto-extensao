@@ -8,6 +8,11 @@ class ClubCreate(BaseModel):
     description: str = Field(min_length=8, max_length=500)
 
 
+class ClubUpdate(BaseModel):
+    name: str = Field(min_length=3, max_length=100)
+    description: str = Field(min_length=8, max_length=500)
+
+
 class ClubPublic(BaseModel):
     id: int
     name: str
@@ -17,6 +22,7 @@ class ClubPublic(BaseModel):
     member_count: int
     current_user_role: ClubRole | None = None
     is_member: bool = False
+    is_favorite: bool = False
 
 
 class ClubMemberPublic(BaseModel):

@@ -20,6 +20,7 @@ def get_member_role(club_id: int, user_id: int) -> ClubRole | None:
 def to_club_public(club: ClubRecord, current_user_id: int | None = None) -> ClubPublic:
     members = store.club_members.get(club["id"], {})
     role = members.get(current_user_id) if current_user_id is not None else None
+    favorite_clubs = store.favorite_clubs.get(current_user_id, set()) if current_user_id is not None else set()
     return ClubPublic(
         id=club["id"],
         name=club["name"],
@@ -29,6 +30,7 @@ def to_club_public(club: ClubRecord, current_user_id: int | None = None) -> Club
         member_count=len(members),
         current_user_role=role,
         is_member=current_user_id in members if current_user_id is not None else False,
+        is_favorite=club["id"] in favorite_clubs,
     )
 
 
@@ -45,6 +47,41 @@ def create_club(name: str, description: str, owner_id: int) -> ClubRecord:
     return club
 
 
+def update_club(club_id: int, user_id: int, name: str, description: str) -> ClubRecord:
+    club = get_club_or_404(club_id)
+    if club["owner_id"] != user_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Apenas o criador do clube pode editá-lo.",
+        )
+
+    club["name"] = name
+    club["description"] = description
+    return club
+
+
+def delete_club(club_id: int, user_id: int) -> None:
+    club = get_club_or_404(club_id)
+    if club["owner_id"] != user_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Apenas o criador do clube pode excluí-lo.",
+        )
+
+    for comment_id in [comment_id for comment_id, comment in store.comments.items() if comment["club_id"] == club_id]:
+        del store.comments[comment_id]
+    for meeting_id in [meeting_id for meeting_id, meeting in store.meetings.items() if meeting["club_id"] == club_id]:
+        del store.meetings[meeting_id]
+    for book_id in [book_id for book_id, book in store.books.items() if book["club_id"] == club_id]:
+        store.book_likes.pop(book_id, None)
+        del store.books[book_id]
+
+    for favorite_clubs in store.favorite_clubs.values():
+        favorite_clubs.discard(club_id)
+    store.club_members.pop(club_id, None)
+    del store.clubs[club_id]
+
+
 def list_public_clubs(current_user_id: int) -> list[ClubPublic]:
     ordered_clubs = sorted(store.clubs.values(), key=lambda item: item["created_at"], reverse=True)
     return [to_club_public(club, current_user_id) for club in ordered_clubs]
@@ -56,6 +93,34 @@ def join_club(club_id: int, user: UserRecord) -> ClubRecord:
     if user["id"] in members:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Usuário já participa deste clube.")
     members[user["id"]] = "membro"
+    return club
+
+
+def favorite_club(club_id: int, user_id: int) -> ClubRecord:
+    club = get_club_or_404(club_id)
+    store.favorite_clubs.setdefault(user_id, set()).add(club_id)
+    return club
+
+
+def unfavorite_club(club_id: int, user_id: int) -> ClubRecord:
+    club = get_club_or_404(club_id)
+    store.favorite_clubs.setdefault(user_id, set()).discard(club_id)
+    return club
+
+
+def leave_club(club_id: int, user_id: int) -> ClubRecord:
+    club = get_club_or_404(club_id)
+    if club["owner_id"] == user_id:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="O criador não pode sair do próprio clube. Exclua o clube se desejar removê-lo.",
+        )
+
+    members = store.club_members.get(club_id, {})
+    if user_id not in members:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Usuário não participa deste clube.")
+
+    del members[user_id]
     return club
 
 

@@ -7,8 +7,13 @@ from app.schemas.books import BookPublic, ReadingHistoryItem
 from app.services.clubs import get_club_or_404
 
 
-def to_book_public(book: BookRecord) -> BookPublic:
-    return BookPublic(**book)
+def to_book_public(book: BookRecord, current_user_id: int | None = None) -> BookPublic:
+    likes = store.book_likes.get(book["id"], set())
+    return BookPublic(
+        **book,
+        like_count=len(likes),
+        liked_by_current_user=current_user_id in likes if current_user_id is not None else False,
+    )
 
 
 def get_book_or_404(book_id: int) -> BookRecord:
@@ -69,8 +74,18 @@ def update_book_status(book: BookRecord, status_value: ReadingStatus) -> BookRec
     return book
 
 
-def list_books_by_club(club_id: int) -> list[BookPublic]:
-    return [to_book_public(book) for book in sorted_club_books(club_id)]
+def like_book(book: BookRecord, user_id: int) -> BookRecord:
+    store.book_likes.setdefault(book["id"], set()).add(user_id)
+    return book
+
+
+def unlike_book(book: BookRecord, user_id: int) -> BookRecord:
+    store.book_likes.setdefault(book["id"], set()).discard(user_id)
+    return book
+
+
+def list_books_by_club(club_id: int, current_user_id: int | None = None) -> list[BookPublic]:
+    return [to_book_public(book, current_user_id) for book in sorted_club_books(club_id)]
 
 
 def list_reading_history(club_id: int) -> list[ReadingHistoryItem]:

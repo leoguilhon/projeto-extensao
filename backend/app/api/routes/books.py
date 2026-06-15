@@ -8,9 +8,11 @@ from app.schemas.meetings import MeetingPublic
 from app.services.books import (
     create_book,
     get_book_or_404,
+    like_book,
     list_books_by_club,
     list_reading_history,
     to_book_public,
+    unlike_book,
     update_book_status,
 )
 from app.services.clubs import get_club_or_404
@@ -25,7 +27,7 @@ router = APIRouter(tags=["books"])
 def get_club_books(club_id: int, user: UserRecord = Depends(current_user)):
     get_club_or_404(club_id)
     require_member(club_id, user)
-    return list_books_by_club(club_id)
+    return list_books_by_club(club_id, user["id"])
 
 
 @router.post("/clubs/{club_id}/books", response_model=BookPublic, status_code=status.HTTP_201_CREATED)
@@ -33,14 +35,14 @@ def add_club_book(payload: BookCreate, club_id: int, user: UserRecord = Depends(
     get_club_or_404(club_id)
     require_admin(club_id, user)
     book = create_book(club_id, payload.title, payload.author, payload.description, payload.status, user["id"])
-    return to_book_public(book)
+    return to_book_public(book, user["id"])
 
 
 @router.get("/books/{book_id}", response_model=BookPublic)
 def get_book(book_id: int, user: UserRecord = Depends(current_user)):
     book = get_book_or_404(book_id)
     require_member(book["club_id"], user)
-    return to_book_public(book)
+    return to_book_public(book, user["id"])
 
 
 @router.patch("/books/{book_id}/status", response_model=BookPublic)
@@ -48,7 +50,21 @@ def patch_book_status(book_id: int, payload: BookStatusUpdate, user: UserRecord 
     book = get_book_or_404(book_id)
     require_admin(book["club_id"], user)
     updated_book = update_book_status(book, payload.status)
-    return to_book_public(updated_book)
+    return to_book_public(updated_book, user["id"])
+
+
+@router.post("/books/{book_id}/like", response_model=BookPublic)
+def add_book_like(book_id: int, user: UserRecord = Depends(current_user)):
+    book = get_book_or_404(book_id)
+    require_member(book["club_id"], user)
+    return to_book_public(like_book(book, user["id"]), user["id"])
+
+
+@router.delete("/books/{book_id}/like", response_model=BookPublic)
+def remove_book_like(book_id: int, user: UserRecord = Depends(current_user)):
+    book = get_book_or_404(book_id)
+    require_member(book["club_id"], user)
+    return to_book_public(unlike_book(book, user["id"]), user["id"])
 
 
 @router.get("/books/{book_id}/comments", response_model=list[CommentPublic])

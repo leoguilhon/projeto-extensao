@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import { Link, useParams } from "react-router-dom";
+import { AutoResizeTextarea } from "../components/AutoResizeTextarea";
 import { bookService, clubService, getErrorMessage } from "../services/api";
 import type { Book, ClubRole, Comment, Meeting, ReadingStatus } from "../types";
 
@@ -89,6 +90,19 @@ export function BookDetailsPage() {
     }
   }
 
+  async function handleToggleLike() {
+    if (!book) return;
+    setFeedback("");
+
+    try {
+      const updatedBook = book.liked_by_current_user ? await bookService.unlike(book.id) : await bookService.like(book.id);
+      setBook(updatedBook);
+      setFeedback(updatedBook.liked_by_current_user ? "Livro curtido." : "Like removido do livro.");
+    } catch (err) {
+      setFeedback(getErrorMessage(err));
+    }
+  }
+
   if (isLoading) {
     return <main className="shell">Carregando livro...</main>;
   }
@@ -104,19 +118,36 @@ export function BookDetailsPage() {
           <p className="eyebrow">{statusLabel[book.status]}</p>
           <h1>{book.title}</h1>
           <p>{book.author}</p>
+          <div className="resource-meta">
+            {book.liked_by_current_user && <span>Curtido por você</span>}
+          </div>
         </div>
-        <Link className="button-link secondary" to={`/clubs/${book.club_id}`}>
-          Voltar ao clube
-        </Link>
+        <div className="inline-actions">
+          <div className="like-control">
+            <button
+              aria-label={book.liked_by_current_user ? "Remover like do livro" : "Curtir livro"}
+              className={`like-toggle ${book.liked_by_current_user ? "active" : ""}`}
+              title={book.liked_by_current_user ? "Remover like" : "Curtir"}
+              type="button"
+              onClick={handleToggleLike}
+            >
+              {book.liked_by_current_user ? "♥" : "♡"}
+            </button>
+            <span>{book.like_count}</span>
+          </div>
+          <Link className="button-link secondary" to={`/clubs/${book.club_id}`}>
+            Voltar ao clube
+          </Link>
+        </div>
       </section>
 
       <section className="stack-layout">
-        <section className="panel">
-          <h2>Detalhes da leitura</h2>
-          <p>{book.description || "Sem descrição cadastrada."}</p>
-          {book.finished_at && <p>Leitura concluída em {new Date(book.finished_at).toLocaleDateString("pt-BR")}.</p>}
+        {clubRole === "admin" && (
+          <section className="panel">
+            <h2>Detalhes da leitura</h2>
+            <p>{book.description || "Sem descrição cadastrada."}</p>
+            {book.finished_at && <p>Leitura concluída em {new Date(book.finished_at).toLocaleDateString("pt-BR")}.</p>}
 
-          {clubRole === "admin" ? (
             <div className="segmented-control" aria-label="Situação da leitura">
               {(["planejado", "em_leitura", "concluido"] as ReadingStatus[]).map((status) => (
                 <button
@@ -129,14 +160,10 @@ export function BookDetailsPage() {
                 </button>
               ))}
             </div>
-          ) : (
-            <div className="notice-box">
-              Apenas administradores do clube podem alterar o status da leitura.
-            </div>
-          )}
 
-          {feedback && <p className="feedback">{feedback}</p>}
-        </section>
+            {feedback && <p className="feedback">{feedback}</p>}
+          </section>
+        )}
 
         <section className="panel">
           <div className="section-header">
@@ -199,7 +226,7 @@ export function BookDetailsPage() {
           <form className="comment-form" onSubmit={handleAddComment}>
             <label>
               Novo comentário
-              <textarea
+              <AutoResizeTextarea
                 value={comment}
                 onChange={(event) => setComment(event.target.value)}
                 placeholder="Compartilhe um ponto da leitura para o clube discutir."

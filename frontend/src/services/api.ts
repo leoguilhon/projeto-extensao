@@ -56,8 +56,23 @@ export const clubService = {
   get(id: string | number) {
     return api.get<Club>(`/clubs/${id}`).then((response) => response.data);
   },
+  update(id: string | number, payload: { name: string; description: string }) {
+    return api.put<Club>(`/clubs/${id}`, payload).then((response) => response.data);
+  },
   join(id: string | number) {
     return api.post<Club>(`/clubs/${id}/join`).then((response) => response.data);
+  },
+  favorite(id: string | number) {
+    return api.post<Club>(`/clubs/${id}/favorite`).then((response) => response.data);
+  },
+  unfavorite(id: string | number) {
+    return api.delete<Club>(`/clubs/${id}/favorite`).then((response) => response.data);
+  },
+  leave(id: string | number) {
+    return api.delete<Club>(`/clubs/${id}/members/me`).then((response) => response.data);
+  },
+  remove(id: string | number) {
+    return api.delete<void>(`/clubs/${id}`).then((response) => response.data);
   },
   members(id: string | number) {
     return api.get<ClubMember[]>(`/clubs/${id}/members`).then((response) => response.data);
@@ -76,6 +91,12 @@ export const bookService = {
   },
   updateStatus(id: string | number, status: ReadingStatus) {
     return api.patch<Book>(`/books/${id}/status`, { status }).then((response) => response.data);
+  },
+  like(id: string | number) {
+    return api.post<Book>(`/books/${id}/like`).then((response) => response.data);
+  },
+  unlike(id: string | number) {
+    return api.delete<Book>(`/books/${id}/like`).then((response) => response.data);
   },
   comments(id: string | number) {
     return api.get<Comment[]>(`/books/${id}/comments`).then((response) => response.data);

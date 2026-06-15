@@ -24,6 +24,8 @@ class BookPublic(BaseModel):
     added_by: int
     created_at: str
     finished_at: str | None = None
+    like_count: int = 0
+    liked_by_current_user: bool = False
 
 
 class ReadingHistoryItem(BaseModel):

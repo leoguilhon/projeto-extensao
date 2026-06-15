@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import type { FormEvent } from "react";
 import { Link, useParams } from "react-router-dom";
+import { ActionMenu } from "../components/ActionMenu";
+import { AutoResizeTextarea } from "../components/AutoResizeTextarea";
 import { Modal } from "../components/Modal";
 import { bookService, clubService, getErrorMessage, meetingService } from "../services/api";
 import type { Book, Club, Comment, Meeting } from "../types";
@@ -9,6 +11,21 @@ function formatDateTime(value: string) {
   return new Date(value).toLocaleString("pt-BR", {
     dateStyle: "short",
     timeStyle: "short",
+  });
+}
+
+function formatMeetingDay(value: string) {
+  return new Date(value).toLocaleDateString("pt-BR", {
+    day: "2-digit",
+    month: "short",
+    weekday: "short",
+  });
+}
+
+function formatMeetingTime(value: string) {
+  return new Date(value).toLocaleTimeString("pt-BR", {
+    hour: "2-digit",
+    minute: "2-digit",
   });
 }
 
@@ -144,59 +161,65 @@ export function MeetingsPage() {
     const meetingComments = commentsByMeeting[meeting.id] ?? [];
 
     return (
-      <article className="panel meeting-card" key={meeting.id}>
+      <article className="meeting-card" key={meeting.id}>
         <div className="meeting-card-header">
           <div>
-            <p className="eyebrow">{meeting.scheduled_for >= currentTime ? "Próximo encontro" : "Registro do encontro"}</p>
+            <span className="status-pill">{meeting.scheduled_for >= currentTime ? "Próximo" : "Realizado"}</span>
             <h3>{meeting.title}</h3>
-            <p>{formatDateTime(meeting.scheduled_for)}</p>
+            <div className="meeting-schedule">
+              <span>📅 {formatMeetingDay(meeting.scheduled_for)}</span>
+              <span>⏰ {formatMeetingTime(meeting.scheduled_for)}</span>
+            </div>
           </div>
           <span className="comment-count">{meeting.comment_count} comentário(s)</span>
         </div>
 
         <div className="meeting-meta">
-          <span>{meeting.location || "Local a definir"}</span>
+          <span>📍 {meeting.location || "Local a definir"}</span>
           {meeting.book_id && <Link to={`/books/${meeting.book_id}`}>Livro: {meeting.book_title}</Link>}
         </div>
 
         <p>{meeting.agenda || "Sem pauta detalhada cadastrada para este encontro."}</p>
 
-        <div className="comment-list">
-          {meetingComments.length ? (
-            meetingComments.map((comment) => (
-              <article className="comment-card" key={comment.id}>
-                <div className="comment-meta">
-                  <strong>{comment.user_name}</strong>
-                  <span>{formatDateTime(comment.created_at)}</span>
-                </div>
-                <p>{comment.content}</p>
-              </article>
-            ))
-          ) : (
-            <div className="empty-state compact">
-              <p>Sem comentários neste encontro.</p>
-              <span>Use o campo abaixo para registrar o encaminhamento da conversa.</span>
-            </div>
-          )}
-        </div>
+        <details className="meeting-comments">
+          <summary>Comentários e registro</summary>
+          <div className="comment-list">
+            {meetingComments.length ? (
+              meetingComments.map((comment) => (
+                <article className="comment-card" key={comment.id}>
+                  <div className="comment-meta">
+                    <strong>{comment.user_name}</strong>
+                    <span>{formatDateTime(comment.created_at)}</span>
+                  </div>
+                  <p>{comment.content}</p>
+                </article>
+              ))
+            ) : (
+              <div className="empty-state compact">
+                <p>Sem comentários neste encontro.</p>
+                <span>Use o campo abaixo para registrar o encaminhamento da conversa.</span>
+              </div>
+            )}
+          </div>
 
-        <form className="comment-form" onSubmit={(event) => handleAddComment(event, meeting.id)}>
-          <label>
-            Comentário do encontro
-            <textarea
-              value={commentDrafts[meeting.id] ?? ""}
-              onChange={(event) =>
-                setCommentDrafts((current) => ({
-                  ...current,
-                  [meeting.id]: event.target.value,
-                }))
-              }
-              placeholder="Registre uma decisão, impressão ou ponto combinado no encontro."
-              required
-            />
-          </label>
-          <button type="submit">Publicar comentário</button>
-        </form>
+          <form className="comment-form" onSubmit={(event) => handleAddComment(event, meeting.id)}>
+            <label>
+              Comentário do encontro
+              <AutoResizeTextarea
+                value={commentDrafts[meeting.id] ?? ""}
+                onChange={(event) =>
+                  setCommentDrafts((current) => ({
+                    ...current,
+                    [meeting.id]: event.target.value,
+                  }))
+                }
+                placeholder="Registre uma decisão, impressão ou ponto combinado no encontro."
+                required
+              />
+            </label>
+            <button type="submit">Publicar comentário</button>
+          </form>
+        </details>
       </article>
     );
   }
@@ -218,37 +241,24 @@ export function MeetingsPage() {
           <p>Planeje reuniões do clube, vincule livros às conversas e registre comentários simples de cada encontro.</p>
         </div>
         <div className="inline-actions">
-          {isAdmin && (
-            <button type="button" onClick={() => setIsMeetingModalOpen(true)}>
-              Criar encontro
-            </button>
+          {isAdmin ? (
+            <ActionMenu>
+              <button type="button" onClick={() => setIsMeetingModalOpen(true)}>
+                📍 Criar encontro
+              </button>
+              <Link className="button-link secondary" to={`/clubs/${club.id}`}>
+                ↩️ Voltar ao clube
+              </Link>
+            </ActionMenu>
+          ) : (
+            <Link className="button-link secondary" to={`/clubs/${club.id}`}>
+              Voltar ao clube
+            </Link>
           )}
-          <Link className="button-link secondary" to={`/clubs/${club.id}`}>
-            Voltar ao clube
-          </Link>
         </div>
       </section>
 
       {feedback && <p className="feedback page-feedback">{feedback}</p>}
-
-      <section className="stats-row">
-        <div>
-          <span>Total de encontros</span>
-          <strong>{meetings.length}</strong>
-        </div>
-        <div>
-          <span>Próximos encontros</span>
-          <strong>{upcomingMeetings.length}</strong>
-        </div>
-        <div>
-          <span>Encontros realizados</span>
-          <strong>{pastMeetings.length}</strong>
-        </div>
-        <div>
-          <span>Seu papel</span>
-          <strong>{club.current_user_role === "admin" ? "Admin" : "Membro"}</strong>
-        </div>
-      </section>
 
       {!isAdmin && (
         <div className="notice-box page-feedback">
@@ -256,18 +266,13 @@ export function MeetingsPage() {
         </div>
       )}
 
-      <section className="content-grid">
-        <section className="panel wide-panel">
-          <div className="section-header">
+      <section className="stack-layout">
+        <section className="workspace-panel focus-panel">
+          <div className="section-header compact">
             <div>
-              <h2>Próximos encontros</h2>
+              <h2>📍 Próximos encontros</h2>
               <p>Organização das próximas leituras e debates do clube.</p>
             </div>
-            {isAdmin && (
-              <button type="button" onClick={() => setIsMeetingModalOpen(true)}>
-                Criar encontro
-              </button>
-            )}
           </div>
           {upcomingMeetings.length ? (
             <div className="item-list">{upcomingMeetings.map(renderMeetingCard)}</div>
@@ -279,10 +284,10 @@ export function MeetingsPage() {
           )}
         </section>
 
-        <section className="panel wide-panel">
-          <div className="section-header">
+        <section className="workspace-panel muted-panel">
+          <div className="section-header compact">
             <div>
-              <h2>Histórico de encontros</h2>
+              <h2>🗓️ Histórico de encontros</h2>
               <p>Registros das conversas já realizadas pelo grupo.</p>
             </div>
           </div>

@@ -23,6 +23,7 @@ export interface Club {
   member_count: number;
   current_user_role: ClubRole | null;
   is_member: boolean;
+  is_favorite: boolean;
 }
 
 export interface ClubMember {
@@ -41,6 +42,8 @@ export interface Book {
   added_by: number;
   created_at: string;
   finished_at: string | null;
+  like_count: number;
+  liked_by_current_user: boolean;
 }
 
 export interface Meeting {

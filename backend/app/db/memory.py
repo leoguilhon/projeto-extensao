@@ -11,6 +11,8 @@ class MemoryStore:
     books: dict[int, BookRecord] = field(default_factory=dict)
     meetings: dict[int, MeetingRecord] = field(default_factory=dict)
     comments: dict[int, CommentRecord] = field(default_factory=dict)
+    favorite_clubs: dict[int, set[int]] = field(default_factory=dict)
+    book_likes: dict[int, set[int]] = field(default_factory=dict)
     tokens: dict[str, int] = field(default_factory=dict)
     next_user_id: int = 1
     next_club_id: int = 1
