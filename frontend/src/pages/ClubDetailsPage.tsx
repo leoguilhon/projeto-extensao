@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
-import type { FormEvent } from "react";
+import type { FormEvent, KeyboardEvent, MouseEvent } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { ActionMenu } from "../components/ActionMenu";
 import { Modal } from "../components/Modal";
 import { useAuth } from "../contexts/AuthContext";
 import { bookService, clubService, getErrorMessage, meetingService } from "../services/api";
-import type { Book, Club, ClubMember, Meeting, ReadingHistoryItem, ReadingStatus } from "../types";
+import type { Book, Club, ClubMember, Meeting, ReadingStatus } from "../types";
+import { formatMeetingDateTime, getMeetingDetailsPath, isInteractiveElementTarget } from "../utils/meetings";
 
 const statusLabel: Record<ReadingStatus, string> = {
   planejado: "Planejado",
@@ -13,12 +14,11 @@ const statusLabel: Record<ReadingStatus, string> = {
   concluido: "Concluído",
 };
 
-function formatDate(value: string) {
-  return new Date(value).toLocaleString("pt-BR", {
-    dateStyle: "short",
-    timeStyle: "short",
-  });
-}
+const statusOrder: Record<ReadingStatus, number> = {
+  em_leitura: 0,
+  planejado: 1,
+  concluido: 2,
+};
 
 export function ClubDetailsPage() {
   const { id } = useParams();
@@ -28,17 +28,11 @@ export function ClubDetailsPage() {
   const [members, setMembers] = useState<ClubMember[]>([]);
   const [books, setBooks] = useState<Book[]>([]);
   const [meetings, setMeetings] = useState<Meeting[]>([]);
-  const [history, setHistory] = useState<ReadingHistoryItem[]>([]);
-  const [title, setTitle] = useState("");
-  const [author, setAuthor] = useState("");
-  const [description, setDescription] = useState("");
   const [clubNameDraft, setClubNameDraft] = useState("");
   const [clubDescriptionDraft, setClubDescriptionDraft] = useState("");
-  const [status, setStatus] = useState<ReadingStatus>("planejado");
   const [feedback, setFeedback] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [currentTime, setCurrentTime] = useState(() => new Date().toISOString());
-  const [isBookModalOpen, setIsBookModalOpen] = useState(false);
   const [isEditClubModalOpen, setIsEditClubModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -49,10 +43,23 @@ export function ClubDetailsPage() {
   const canEditClub = Boolean(club && user && club.owner_id === user.id);
   const canDeleteClub = Boolean(club && user && club.owner_id === user.id);
   const canLeaveClub = Boolean(club && user && club.is_member && club.owner_id !== user.id);
-  const currentBook = useMemo(() => books.find((book) => book.status === "em_leitura"), [books]);
+  const orderedBooks = useMemo(
+    () =>
+      [...books].sort(
+        (a, b) =>
+          statusOrder[a.status] - statusOrder[b.status] ||
+          new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
+      ),
+    [books],
+  );
+  const currentBook = useMemo(() => orderedBooks.find((book) => book.status === "em_leitura"), [orderedBooks]);
   const nextMeeting = useMemo(
     () => meetings.find((meeting) => meeting.scheduled_for >= currentTime) ?? meetings[0] ?? null,
     [currentTime, meetings],
+  );
+  const orderedMeetingsDesc = useMemo(
+    () => [...meetings].sort((a, b) => new Date(b.scheduled_for).getTime() - new Date(a.scheduled_for).getTime()),
+    [meetings],
   );
 
   useEffect(() => {
@@ -62,12 +69,11 @@ export function ClubDetailsPage() {
 
     async function loadClub() {
       try {
-        const [clubData, memberData, bookData, meetingData, historyData] = await Promise.all([
+        const [clubData, memberData, bookData, meetingData] = await Promise.all([
           clubService.get(clubId),
           clubService.members(clubId),
           bookService.listByClub(clubId),
           meetingService.listByClub(clubId),
-          bookService.history(clubId),
         ]);
         if (!isMounted) return;
         setClub(clubData);
@@ -76,7 +82,6 @@ export function ClubDetailsPage() {
         setMembers(memberData);
         setBooks(bookData);
         setMeetings(meetingData);
-        setHistory(historyData);
         setCurrentTime(new Date().toISOString());
       } catch (err) {
         if (isMounted) {
@@ -95,27 +100,6 @@ export function ClubDetailsPage() {
       isMounted = false;
     };
   }, [id]);
-
-  async function handleCreateBook(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (!id) return;
-    setFeedback("");
-
-    try {
-      await bookService.create(id, { title, author, description, status });
-      const [updatedBooks, updatedHistory] = await Promise.all([bookService.listByClub(id), bookService.history(id)]);
-      setBooks(updatedBooks);
-      setHistory(updatedHistory);
-      setTitle("");
-      setAuthor("");
-      setDescription("");
-      setStatus("planejado");
-      setFeedback("Livro cadastrado no clube.");
-      setIsBookModalOpen(false);
-    } catch (err) {
-      setFeedback(getErrorMessage(err));
-    }
-  }
 
   async function handleUpdateClub(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -182,16 +166,40 @@ export function ClubDetailsPage() {
     }
   }
 
-  async function handleToggleBookLike(book: Book) {
-    setFeedback("");
+  function handleMeetingCardClick(event: MouseEvent<HTMLElement>, meetingDetailsPath: string) {
+    if (isInteractiveElementTarget(event.target)) return;
+    navigate(meetingDetailsPath);
+  }
 
-    try {
-      const updatedBook = book.liked_by_current_user ? await bookService.unlike(book.id) : await bookService.like(book.id);
-      setBooks((current) => current.map((item) => (item.id === book.id ? updatedBook : item)));
-      setFeedback(updatedBook.liked_by_current_user ? "Livro curtido." : "Like removido do livro.");
-    } catch (err) {
-      setFeedback(getErrorMessage(err));
-    }
+  function handleMeetingCardKeyDown(event: KeyboardEvent<HTMLElement>, meetingDetailsPath: string) {
+    if (event.target !== event.currentTarget) return;
+    if (event.key !== "Enter" && event.key !== " ") return;
+    event.preventDefault();
+    navigate(meetingDetailsPath);
+  }
+
+  function handleBookCardClick(event: MouseEvent<HTMLElement>, bookId: number) {
+    if (isInteractiveElementTarget(event.target)) return;
+    navigate(`/books/${bookId}`);
+  }
+
+  function handleBookCardKeyDown(event: KeyboardEvent<HTMLElement>, bookId: number) {
+    if (event.target !== event.currentTarget) return;
+    if (event.key !== "Enter" && event.key !== " ") return;
+    event.preventDefault();
+    navigate(`/books/${bookId}`);
+  }
+
+  function handlePanelNavigation(event: MouseEvent<HTMLElement>, path: string) {
+    if (isInteractiveElementTarget(event.target)) return;
+    navigate(path);
+  }
+
+  function handlePanelNavigationKeyDown(event: KeyboardEvent<HTMLElement>, path: string) {
+    if (event.target !== event.currentTarget) return;
+    if (event.key !== "Enter" && event.key !== " ") return;
+    event.preventDefault();
+    navigate(path);
   }
 
   if (isLoading) {
@@ -204,50 +212,46 @@ export function ClubDetailsPage() {
 
   return (
     <main className="shell">
-      <section className="page-heading">
+      <section className="page-heading page-heading-with-actions">
         <div>
           <p className="eyebrow">Clube de leitura</p>
-          <h1>{club.name}</h1>
+          <div className="page-heading-row">
+            <h1>{club.name}</h1>
+            <div className="inline-actions">
+              <button
+                aria-label={club.is_favorite ? "Remover clube dos favoritos" : "Favoritar clube"}
+                className={`favorite-toggle ${club.is_favorite ? "active" : ""}`}
+                title={club.is_favorite ? "Remover favorito" : "Favoritar"}
+                type="button"
+                onClick={handleToggleFavorite}
+              >
+                {club.is_favorite ? "★" : "☆"}
+              </button>
+              <Link className="button-link secondary" to="/dashboard">
+                ↩️ Voltar
+              </Link>
+              {canLeaveClub && (
+                <button className="danger-button" type="button" onClick={() => setIsLeaveModalOpen(true)}>
+                  🚪 Sair do clube
+                </button>
+              )}
+              {(canEditClub || canDeleteClub) && (
+                <ActionMenu>
+                  {canEditClub && (
+                    <button type="button" onClick={() => setIsEditClubModalOpen(true)}>
+                      ✏️ Editar clube
+                    </button>
+                  )}
+                  {canDeleteClub && (
+                    <button className="danger-button" type="button" onClick={() => setIsDeleteModalOpen(true)}>
+                      🗑️ Excluir clube
+                    </button>
+                  )}
+                </ActionMenu>
+              )}
+            </div>
+          </div>
           <p>{club.description}</p>
-        </div>
-        <div className="inline-actions">
-          <button
-            aria-label={club.is_favorite ? "Remover clube dos favoritos" : "Favoritar clube"}
-            className={`favorite-toggle ${club.is_favorite ? "active" : ""}`}
-            title={club.is_favorite ? "Remover favorito" : "Favoritar"}
-            type="button"
-            onClick={handleToggleFavorite}
-          >
-            {club.is_favorite ? "★" : "☆"}
-          </button>
-          <ActionMenu>
-            <Link className="button-link" to={`/clubs/${club.id}/meetings`}>
-              📍 Ver encontros
-            </Link>
-            {isAdmin && (
-              <button type="button" onClick={() => setIsBookModalOpen(true)}>
-                📚 Cadastrar livro
-              </button>
-            )}
-            {canEditClub && (
-              <button type="button" onClick={() => setIsEditClubModalOpen(true)}>
-                ✏️ Editar clube
-              </button>
-            )}
-            <Link className="button-link secondary" to="/dashboard">
-              ↩️ Voltar
-            </Link>
-            {canLeaveClub && (
-              <button className="danger-button" type="button" onClick={() => setIsLeaveModalOpen(true)}>
-                🚪 Sair do clube
-              </button>
-            )}
-            {canDeleteClub && (
-              <button className="danger-button" type="button" onClick={() => setIsDeleteModalOpen(true)}>
-                🗑️ Excluir clube
-              </button>
-            )}
-          </ActionMenu>
         </div>
       </section>
 
@@ -257,11 +261,16 @@ export function ClubDetailsPage() {
         <section className="workspace-panel club-summary-panel">
           <h2>📚 Livro atual</h2>
           {currentBook ? (
-            <article className="compact-card">
+            <article
+              className="compact-card clickable-card"
+              role="link"
+              tabIndex={0}
+              onClick={(event) => handleBookCardClick(event, currentBook.id)}
+              onKeyDown={(event) => handleBookCardKeyDown(event, currentBook.id)}
+            >
               <h3>{currentBook.title}</h3>
               <p>{currentBook.author}</p>
               <span className="meta-label">{statusLabel[currentBook.status]}</span>
-              <Link to={`/books/${currentBook.id}`}>Ver detalhes</Link>
             </article>
           ) : (
             <div className="empty-state">
@@ -274,13 +283,18 @@ export function ClubDetailsPage() {
         <section className="workspace-panel club-summary-panel">
           <h2>📍 Próximo encontro</h2>
           {nextMeeting ? (
-            <article className="compact-card">
+            <article
+              className="compact-card clickable-card"
+              role="link"
+              tabIndex={0}
+              onClick={(event) => handleMeetingCardClick(event, getMeetingDetailsPath(nextMeeting.club_id, nextMeeting.id))}
+              onKeyDown={(event) => handleMeetingCardKeyDown(event, getMeetingDetailsPath(nextMeeting.club_id, nextMeeting.id))}
+            >
               <h3>{nextMeeting.title}</h3>
-              <p>{formatDate(nextMeeting.scheduled_for)}</p>
+              <p>{formatMeetingDateTime(nextMeeting.scheduled_for)}</p>
               <span className="meta-label">{nextMeeting.location || "Local a definir"}</span>
-              {nextMeeting.book_id && (
-                <Link to={`/books/${nextMeeting.book_id}`}>{nextMeeting.book_title}</Link>
-              )}
+              <span className="meta-label">{nextMeeting.attendee_count} presença(s) confirmada(s)</span>
+              {nextMeeting.book_id && <Link to={`/books/${nextMeeting.book_id}`}>{nextMeeting.book_title}</Link>}
             </article>
           ) : (
             <div className="empty-state">
@@ -302,40 +316,38 @@ export function ClubDetailsPage() {
           </div>
         </section>
 
-        <section className="workspace-panel wide-panel">
+        <section
+          className="workspace-panel wide-panel clickable-card"
+          role="link"
+          tabIndex={0}
+          onClick={(event) => handlePanelNavigation(event, `/clubs/${club.id}/books`)}
+          onKeyDown={(event) => handlePanelNavigationKeyDown(event, `/clubs/${club.id}/books`)}
+        >
           <div className="section-header compact">
             <div>
               <h2>📚 Livros do clube</h2>
-              <p>Acompanhe leituras em andamento, planejadas e concluídas.</p>
+              <p>Resumo das leituras do clube. Clique no box para abrir a página exclusiva dos livros.</p>
             </div>
           </div>
-          {books.length ? (
+          {orderedBooks.length ? (
             <div className="item-list scroll-list long-list">
-              {books.map((book) => (
+              {orderedBooks.map((book) => (
                 <article className="resource-card" key={book.id}>
                   <div className="resource-main">
                     <h3>{book.title}</h3>
                     <p>{book.author}</p>
                     <div className="resource-meta">
-                      <span>{statusLabel[book.status]}</span>
+                      {book.status === "concluido" && book.finished_at ? (
+                        <span>Concluído em {new Date(book.finished_at).toLocaleDateString("pt-BR")}</span>
+                      ) : (
+                        <span>{statusLabel[book.status]}</span>
+                      )}
                     </div>
                   </div>
                   <div className="card-actions">
                     <div className="like-control">
-                      <button
-                        aria-label={book.liked_by_current_user ? "Remover like do livro" : "Curtir livro"}
-                        className={`like-toggle ${book.liked_by_current_user ? "active" : ""}`}
-                        title={book.liked_by_current_user ? "Remover like" : "Curtir"}
-                        type="button"
-                        onClick={() => handleToggleBookLike(book)}
-                      >
-                        {book.liked_by_current_user ? "♥" : "♡"}
-                      </button>
-                      <span>{book.like_count}</span>
+                      <span>♥ {book.like_count}</span>
                     </div>
-                    <Link className="button-link" to={`/books/${book.id}`}>
-                      Detalhes
-                    </Link>
                   </div>
                 </article>
               ))}
@@ -343,27 +355,35 @@ export function ClubDetailsPage() {
           ) : (
             <div className="empty-state">
               <p>Este clube ainda não possui livros cadastrados.</p>
-              <span>{isAdmin ? "Use o botão Cadastrar livro para registrar a primeira leitura." : "Aguarde um administrador publicar a primeira obra."}</span>
+              <span>{isAdmin ? "Abra a página Livros do clube para cadastrar a primeira leitura." : "Aguarde um administrador publicar a primeira obra."}</span>
             </div>
           )}
         </section>
 
-        <section className="workspace-panel wide-panel">
+        <section
+          className="workspace-panel wide-panel clickable-card"
+          role="link"
+          tabIndex={0}
+          onClick={(event) => handlePanelNavigation(event, `/clubs/${club.id}/meetings`)}
+          onKeyDown={(event) => handlePanelNavigationKeyDown(event, `/clubs/${club.id}/meetings`)}
+        >
           <div className="section-header compact">
             <div>
-              <h2>✅ Histórico de leituras</h2>
-              <p>Registros das obras já concluídas pelo grupo.</p>
+              <h2>📍 Encontros</h2>
+              <p>Todos os encontros do clube. Clique no box para abrir a página exclusiva dos encontros.</p>
             </div>
           </div>
-          {history.length ? (
+          {orderedMeetingsDesc.length ? (
             <div className="item-list scroll-list long-list">
-              {history.map((item) => (
-                <article className="resource-card" key={item.book_id}>
+              {orderedMeetingsDesc.map((meeting) => (
+                <article className="resource-card" key={meeting.id}>
                   <div className="resource-main">
-                    <h3>{item.title}</h3>
-                    <p>{item.author}</p>
+                    <h3>{meeting.title}</h3>
+                    <p>{formatMeetingDateTime(meeting.scheduled_for)}</p>
                     <div className="resource-meta">
-                      <span>Concluído em {new Date(item.finished_at).toLocaleDateString("pt-BR")}</span>
+                      <span>{meeting.location || "Local a definir"}</span>
+                      <span>{meeting.attendee_count} presença(s)</span>
+                      <span>{meeting.comment_count} comentário(s)</span>
                     </div>
                   </div>
                 </article>
@@ -371,43 +391,12 @@ export function ClubDetailsPage() {
             </div>
           ) : (
             <div className="empty-state">
-              <p>Ainda não há livros concluídos neste clube.</p>
-              <span>Assim que uma leitura for finalizada, ela aparecerá automaticamente aqui.</span>
+              <p>Este clube ainda não possui encontros cadastrados.</p>
+              <span>Assim que um encontro for planejado, ele aparecerá aqui.</span>
             </div>
           )}
         </section>
       </section>
-
-      <Modal title="Cadastrar livro" isOpen={isBookModalOpen} onClose={() => setIsBookModalOpen(false)}>
-        <form onSubmit={handleCreateBook}>
-          <label>
-            Título
-            <input value={title} onChange={(event) => setTitle(event.target.value)} required />
-          </label>
-          <label>
-            Autor
-            <input value={author} onChange={(event) => setAuthor(event.target.value)} required />
-          </label>
-          <label>
-            Descrição
-            <textarea value={description} onChange={(event) => setDescription(event.target.value)} />
-          </label>
-          <label>
-            Situação
-            <select value={status} onChange={(event) => setStatus(event.target.value as ReadingStatus)}>
-              <option value="planejado">Planejado</option>
-              <option value="em_leitura">Em leitura</option>
-              <option value="concluido">Concluído</option>
-            </select>
-          </label>
-          <div className="form-actions">
-            <button className="ghost-button" type="button" onClick={() => setIsBookModalOpen(false)}>
-              Cancelar
-            </button>
-            <button type="submit">Cadastrar livro</button>
-          </div>
-        </form>
-      </Modal>
 
       <Modal title="Editar clube" isOpen={isEditClubModalOpen} onClose={() => setIsEditClubModalOpen(false)}>
         <form onSubmit={handleUpdateClub}>

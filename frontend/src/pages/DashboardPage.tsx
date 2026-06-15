@@ -1,12 +1,14 @@
 import { useEffect, useState } from "react";
-import type { FormEvent } from "react";
-import { Link } from "react-router-dom";
+import type { FormEvent, KeyboardEvent, MouseEvent } from "react";
+import { useNavigate } from "react-router-dom";
 import { Modal } from "../components/Modal";
 import { useAuth } from "../contexts/AuthContext";
 import { clubService, getErrorMessage } from "../services/api";
 import type { Club } from "../types";
+import { isInteractiveElementTarget } from "../utils/meetings";
 
 export function DashboardPage() {
+  const navigate = useNavigate();
   const { user } = useAuth();
   const [clubs, setClubs] = useState<Club[]>([]);
   const [name, setName] = useState("");
@@ -17,6 +19,7 @@ export function DashboardPage() {
   const orderedClubs = [...clubs].sort((a, b) => Number(b.is_favorite) - Number(a.is_favorite));
   const myClubs = orderedClubs.filter((club) => club.is_member);
   const availableClubs = orderedClubs.filter((club) => !club.is_member);
+  const favoriteCount = orderedClubs.filter((club) => club.is_favorite).length;
 
   useEffect(() => {
     let isMounted = true;
@@ -83,29 +86,72 @@ export function DashboardPage() {
     }
   }
 
+  function handleClubCardClick(event: MouseEvent<HTMLElement>, clubId: number) {
+    if (isInteractiveElementTarget(event.target)) return;
+    navigate(`/clubs/${clubId}`);
+  }
+
+  function handleClubCardKeyDown(event: KeyboardEvent<HTMLElement>, clubId: number) {
+    if (event.target !== event.currentTarget) return;
+    if (event.key !== "Enter" && event.key !== " ") return;
+    event.preventDefault();
+    navigate(`/clubs/${clubId}`);
+  }
+
   return (
     <main className="shell">
-      <section className="page-heading">
+      <section className="page-heading page-heading-with-actions">
         <div>
-          <p className="eyebrow">Área dos clubes</p>
-          <h1>Clubes do livro</h1>
-          <p>Crie clubes, visualize grupos disponíveis e acompanhe sua participação.</p>
-        </div>
-        <div className="inline-actions">
-          <button type="button" onClick={() => setIsCreateModalOpen(true)}>
-            Criar clube
-          </button>
+          <p className="eyebrow">Area dos clubes</p>
+          <div className="page-heading-row">
+            <h1>Clubes do livro</h1>
+            <div className="inline-actions">
+              <button type="button" onClick={() => setIsCreateModalOpen(true)}>
+                Criar clube
+              </button>
+            </div>
+          </div>
+          <p>Crie clubes, acompanhe grupos disponiveis e mantenha a sua jornada de leitura em um painel unico.</p>
+          <div className="page-heading-metrics">
+            <article className="metric-card">
+              <span>Participando</span>
+              <strong>{myClubs.length}</strong>
+            </article>
+            <article className="metric-card">
+              <span>Favoritos</span>
+              <strong>{favoriteCount}</strong>
+            </article>
+            <article className="metric-card">
+              <span>Para explorar</span>
+              <strong>{availableClubs.length}</strong>
+            </article>
+          </div>
         </div>
       </section>
 
       {feedback && <p className="feedback page-feedback">{feedback}</p>}
+
+      <section className="dashboard-hero">
+        <div className="dashboard-hero-copy">
+          <span className="hero-chip">Mapa do leitor</span>
+          <h2>Seus clubes agora podem ter contexto, ritmo e memoria.</h2>
+          <p>
+            Priorize os grupos em que voce participa, favorite os mais importantes e descubra novos espacos para continuar
+            a conversa alem da ultima reuniao.
+          </p>
+        </div>
+        <div className="dashboard-note">
+          <strong>Curadoria viva</strong>
+          <span>Abra qualquer box para entrar direto no clube. Menos intermediarios, mais continuidade na leitura.</span>
+        </div>
+      </section>
 
       <section className="list-columns">
         <section className="workspace-panel">
           <div className="section-header compact">
             <div>
               <h2>Meus clubes</h2>
-              <p>Grupos em que você participa.</p>
+              <p>Grupos em que voce participa.</p>
             </div>
           </div>
           {isLoading ? (
@@ -113,7 +159,14 @@ export function DashboardPage() {
           ) : myClubs.length ? (
             <div className="item-list">
               {myClubs.map((club) => (
-                <article className="resource-card" key={club.id}>
+                <article
+                  className="resource-card clickable-card"
+                  key={club.id}
+                  role="link"
+                  tabIndex={0}
+                  onClick={(event) => handleClubCardClick(event, club.id)}
+                  onKeyDown={(event) => handleClubCardKeyDown(event, club.id)}
+                >
                   <div className="resource-main">
                     <h3>{club.name}</h3>
                     <p>{club.description}</p>
@@ -133,17 +186,14 @@ export function DashboardPage() {
                     >
                       {club.is_favorite ? "★" : "☆"}
                     </button>
-                    <Link className="button-link" to={`/clubs/${club.id}`}>
-                      Abrir
-                    </Link>
                   </div>
                 </article>
               ))}
             </div>
           ) : (
             <div className="empty-state">
-              <p>Você ainda não participa de nenhum clube.</p>
-              <span>Crie um clube ou ingresse em um dos grupos disponíveis.</span>
+              <p>Voce ainda nao participa de nenhum clube.</p>
+              <span>Crie um clube ou ingresse em um dos grupos disponiveis.</span>
             </div>
           )}
         </section>
@@ -151,7 +201,7 @@ export function DashboardPage() {
         <section className="workspace-panel">
           <div className="section-header compact">
             <div>
-              <h2>Clubes disponíveis</h2>
+              <h2>Clubes disponiveis</h2>
               <p>Grupos abertos para ingresso.</p>
             </div>
           </div>
@@ -160,7 +210,14 @@ export function DashboardPage() {
           ) : availableClubs.length ? (
             <div className="item-list">
               {availableClubs.map((club) => (
-                <article className="resource-card" key={club.id}>
+                <article
+                  className="resource-card clickable-card"
+                  key={club.id}
+                  role="link"
+                  tabIndex={0}
+                  onClick={(event) => handleClubCardClick(event, club.id)}
+                  onKeyDown={(event) => handleClubCardKeyDown(event, club.id)}
+                >
                   <div className="resource-main">
                     <h3>{club.name}</h3>
                     <p>{club.description}</p>
@@ -188,8 +245,8 @@ export function DashboardPage() {
             </div>
           ) : (
             <div className="empty-state">
-              <p>Não há clubes disponíveis no momento.</p>
-              <span>Todos os clubes cadastrados já fazem parte da sua lista.</span>
+              <p>Nao ha clubes disponiveis no momento.</p>
+              <span>Todos os clubes cadastrados ja fazem parte da sua lista.</span>
             </div>
           )}
         </section>
@@ -202,7 +259,7 @@ export function DashboardPage() {
             <input value={name} onChange={(event) => setName(event.target.value)} required />
           </label>
           <label>
-            Descrição
+            Descricao
             <textarea value={description} onChange={(event) => setDescription(event.target.value)} required />
           </label>
           <div className="form-actions">

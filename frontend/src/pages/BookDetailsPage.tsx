@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
-import type { FormEvent } from "react";
-import { Link, useParams } from "react-router-dom";
+import type { FormEvent, KeyboardEvent, MouseEvent } from "react";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { AutoResizeTextarea } from "../components/AutoResizeTextarea";
 import { bookService, clubService, getErrorMessage } from "../services/api";
 import type { Book, ClubRole, Comment, Meeting, ReadingStatus } from "../types";
+import { formatMeetingDateTime, getMeetingDetailsPath, isInteractiveElementTarget } from "../utils/meetings";
 
 const statusLabel: Record<ReadingStatus, string> = {
   planejado: "Planejado",
@@ -11,15 +12,9 @@ const statusLabel: Record<ReadingStatus, string> = {
   concluido: "Concluído",
 };
 
-function formatDateTime(value: string) {
-  return new Date(value).toLocaleString("pt-BR", {
-    dateStyle: "short",
-    timeStyle: "short",
-  });
-}
-
 export function BookDetailsPage() {
   const { id } = useParams();
+  const navigate = useNavigate();
   const [book, setBook] = useState<Book | null>(null);
   const [clubRole, setClubRole] = useState<ClubRole | null>(null);
   const [comments, setComments] = useState<Comment[]>([]);
@@ -103,6 +98,18 @@ export function BookDetailsPage() {
     }
   }
 
+  function handleMeetingCardClick(event: MouseEvent<HTMLElement>, meetingDetailsPath: string) {
+    if (isInteractiveElementTarget(event.target)) return;
+    navigate(meetingDetailsPath);
+  }
+
+  function handleMeetingCardKeyDown(event: KeyboardEvent<HTMLElement>, meetingDetailsPath: string) {
+    if (event.target !== event.currentTarget) return;
+    if (event.key !== "Enter" && event.key !== " ") return;
+    event.preventDefault();
+    navigate(meetingDetailsPath);
+  }
+
   if (isLoading) {
     return <main className="shell">Carregando livro...</main>;
   }
@@ -113,31 +120,33 @@ export function BookDetailsPage() {
 
   return (
     <main className="shell narrow">
-      <section className="page-heading">
+      <section className="page-heading page-heading-with-actions">
         <div>
           <p className="eyebrow">{statusLabel[book.status]}</p>
-          <h1>{book.title}</h1>
+          <div className="page-heading-row">
+            <h1>{book.title}</h1>
+            <div className="inline-actions">
+              <div className="like-control">
+                <button
+                  aria-label={book.liked_by_current_user ? "Remover like do livro" : "Curtir livro"}
+                  className={`like-toggle ${book.liked_by_current_user ? "active" : ""}`}
+                  title={book.liked_by_current_user ? "Remover like" : "Curtir"}
+                  type="button"
+                  onClick={handleToggleLike}
+                >
+                  {book.liked_by_current_user ? "♥" : "♡"}
+                </button>
+                <span>{book.like_count}</span>
+              </div>
+              <Link className="button-link secondary" to={`/clubs/${book.club_id}`}>
+                Voltar ao clube
+              </Link>
+            </div>
+          </div>
           <p>{book.author}</p>
           <div className="resource-meta">
             {book.liked_by_current_user && <span>Curtido por você</span>}
           </div>
-        </div>
-        <div className="inline-actions">
-          <div className="like-control">
-            <button
-              aria-label={book.liked_by_current_user ? "Remover like do livro" : "Curtir livro"}
-              className={`like-toggle ${book.liked_by_current_user ? "active" : ""}`}
-              title={book.liked_by_current_user ? "Remover like" : "Curtir"}
-              type="button"
-              onClick={handleToggleLike}
-            >
-              {book.liked_by_current_user ? "♥" : "♡"}
-            </button>
-            <span>{book.like_count}</span>
-          </div>
-          <Link className="button-link secondary" to={`/clubs/${book.club_id}`}>
-            Voltar ao clube
-          </Link>
         </div>
       </section>
 
@@ -178,10 +187,17 @@ export function BookDetailsPage() {
           {meetings.length ? (
             <div className="item-list">
               {meetings.map((meeting) => (
-                <article className="list-card" key={meeting.id}>
+                <article
+                  className="list-card clickable-card"
+                  key={meeting.id}
+                  role="link"
+                  tabIndex={0}
+                  onClick={(event) => handleMeetingCardClick(event, getMeetingDetailsPath(meeting.club_id, meeting.id))}
+                  onKeyDown={(event) => handleMeetingCardKeyDown(event, getMeetingDetailsPath(meeting.club_id, meeting.id))}
+                >
                   <div>
                     <h3>{meeting.title}</h3>
-                    <p>{formatDateTime(meeting.scheduled_for)}</p>
+                    <p>{formatMeetingDateTime(meeting.scheduled_for)}</p>
                     <span>{meeting.location || "Local a definir"}</span>
                   </div>
                   <strong className="comment-count">{meeting.comment_count} comentário(s)</strong>
@@ -210,7 +226,7 @@ export function BookDetailsPage() {
                 <article className="comment-card" key={item.id}>
                   <div className="comment-meta">
                     <strong>{item.user_name}</strong>
-                    <span>{formatDateTime(item.created_at)}</span>
+                    <span>{formatMeetingDateTime(item.created_at)}</span>
                   </div>
                   <p>{item.content}</p>
                 </article>

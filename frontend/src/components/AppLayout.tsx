@@ -15,19 +15,28 @@ export function AppLayout() {
       <header className="topbar">
         <Link className="brand" to="/dashboard">
           <img src="/images/logo-header.png" alt="LendoJuntos" />
+          <div className="brand-copy">
+            <span className="brand-kicker">LendoJuntos</span>
+            <strong>clubes com memoria</strong>
+          </div>
         </Link>
-        <nav>
+        <nav className="topnav">
           <NavLink to="/dashboard">Clubes</NavLink>
           <NavLink to="/profile">Perfil</NavLink>
         </nav>
         <div className="user-menu">
-          <span>{user?.name}</span>
+          <div className="user-badge">
+            <span>Leitor atual</span>
+            <strong>{user?.name}</strong>
+          </div>
           <button className="ghost-button" type="button" onClick={handleLogout}>
             Sair
           </button>
         </div>
       </header>
-      <Outlet />
+      <div className="app-content">
+        <Outlet />
+      </div>
     </div>
   );
 }

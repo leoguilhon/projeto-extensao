@@ -29,35 +29,62 @@ export function LoginPage() {
 
   return (
     <main className="auth-page">
-      <section className="auth-panel">
-        <div>
-          <img className="auth-logo primary" src="/images/logo-primary.png" alt="LendoJuntos" />
-          <p className="eyebrow">Clubes de leitura organizados</p>
-          <h1 className="sr-only">LendoJuntos</h1>
-          <p>Centralize clubes, livros e histórico de leituras em uma única plataforma.</p>
-        </div>
+      <section className="auth-stage">
+        <section className="auth-story">
+          <p className="eyebrow">Leitura com presenca</p>
+          <h1>Organize clubes, encontros e conversas sem perder o fio da leitura.</h1>
+          <p className="auth-lead">
+            Uma interface feita para clubes que querem registrar decisoes, descobrir proximos encontros e manter a memoria
+            do grupo viva.
+          </p>
 
-        <form onSubmit={handleSubmit}>
-          <label>
-            E-mail
-            <input type="email" value={email} onChange={(event) => setEmail(event.target.value)} required />
-          </label>
+          <div className="auth-highlights">
+            <article className="auth-highlight-card">
+              <strong>Clubes</strong>
+              <span>Seu espaco para reunir leitores, livros e responsabilidades.</span>
+            </article>
+            <article className="auth-highlight-card">
+              <strong>Encontros</strong>
+              <span>Agenda, pauta e presencas confirmadas no mesmo fluxo.</span>
+            </article>
+            <article className="auth-highlight-card">
+              <strong>Memoria</strong>
+              <span>Comentarios e historico acessiveis, sem conversas dispersas.</span>
+            </article>
+          </div>
+        </section>
 
-          <label>
-            Senha
-            <input type="password" value={password} onChange={(event) => setPassword(event.target.value)} required />
-          </label>
+        <section className="auth-panel">
+          <div className="auth-panel-head">
+            <img className="auth-logo primary" src="/images/logo-primary.png" alt="LendoJuntos" />
+            <div>
+              <p className="eyebrow">Acesso ao painel</p>
+              <h2>Entrar</h2>
+            </div>
+          </div>
 
-          {error && <p className="feedback error">{error}</p>}
+          <form onSubmit={handleSubmit}>
+            <label>
+              E-mail
+              <input type="email" value={email} onChange={(event) => setEmail(event.target.value)} required />
+            </label>
 
-          <button type="submit" disabled={isSubmitting}>
-            {isSubmitting ? "Entrando..." : "Entrar"}
-          </button>
-        </form>
+            <label>
+              Senha
+              <input type="password" value={password} onChange={(event) => setPassword(event.target.value)} required />
+            </label>
 
-        <p>
-          Não tem conta? <Link to="/register">Criar conta</Link>
-        </p>
+            {error && <p className="feedback error">{error}</p>}
+
+            <button type="submit" disabled={isSubmitting}>
+              {isSubmitting ? "Entrando..." : "Entrar na plataforma"}
+            </button>
+          </form>
+
+          <p className="auth-switch">
+            Nao tem conta? <Link to="/register">Criar conta</Link>
+          </p>
+        </section>
       </section>
     </main>
   );

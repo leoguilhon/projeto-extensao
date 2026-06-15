@@ -10,6 +10,7 @@ class MemoryStore:
     club_members: dict[int, dict[int, ClubRole]] = field(default_factory=dict)
     books: dict[int, BookRecord] = field(default_factory=dict)
     meetings: dict[int, MeetingRecord] = field(default_factory=dict)
+    meeting_attendees: dict[int, set[int]] = field(default_factory=dict)
     comments: dict[int, CommentRecord] = field(default_factory=dict)
     favorite_clubs: dict[int, set[int]] = field(default_factory=dict)
     book_likes: dict[int, set[int]] = field(default_factory=dict)

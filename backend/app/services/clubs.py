@@ -71,6 +71,7 @@ def delete_club(club_id: int, user_id: int) -> None:
     for comment_id in [comment_id for comment_id, comment in store.comments.items() if comment["club_id"] == club_id]:
         del store.comments[comment_id]
     for meeting_id in [meeting_id for meeting_id, meeting in store.meetings.items() if meeting["club_id"] == club_id]:
+        store.meeting_attendees.pop(meeting_id, None)
         del store.meetings[meeting_id]
     for book_id in [book_id for book_id, book in store.books.items() if book["club_id"] == club_id]:
         store.book_likes.pop(book_id, None)
@@ -121,6 +122,9 @@ def leave_club(club_id: int, user_id: int) -> ClubRecord:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Usuário não participa deste clube.")
 
     del members[user_id]
+    for meeting_id, meeting in store.meetings.items():
+        if meeting["club_id"] == club_id:
+            store.meeting_attendees.setdefault(meeting_id, set()).discard(user_id)
     return club
 
 

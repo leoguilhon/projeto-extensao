@@ -5,7 +5,7 @@ interface ActionMenuProps {
   label?: string;
 }
 
-export function ActionMenu({ children, label = "Ações" }: ActionMenuProps) {
+export function ActionMenu({ children, label = "⚙️" }: ActionMenuProps) {
   return (
     <details className="action-menu">
       <summary>{label}</summary>

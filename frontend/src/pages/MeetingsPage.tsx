@@ -1,46 +1,22 @@
 import { useEffect, useMemo, useState } from "react";
-import type { FormEvent } from "react";
-import { Link, useParams } from "react-router-dom";
-import { ActionMenu } from "../components/ActionMenu";
-import { AutoResizeTextarea } from "../components/AutoResizeTextarea";
+import type { FormEvent, KeyboardEvent, MouseEvent } from "react";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { Modal } from "../components/Modal";
 import { bookService, clubService, getErrorMessage, meetingService } from "../services/api";
-import type { Book, Club, Comment, Meeting } from "../types";
-
-function formatDateTime(value: string) {
-  return new Date(value).toLocaleString("pt-BR", {
-    dateStyle: "short",
-    timeStyle: "short",
-  });
-}
-
-function formatMeetingDay(value: string) {
-  return new Date(value).toLocaleDateString("pt-BR", {
-    day: "2-digit",
-    month: "short",
-    weekday: "short",
-  });
-}
-
-function formatMeetingTime(value: string) {
-  return new Date(value).toLocaleTimeString("pt-BR", {
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
+import type { Book, Club, Meeting } from "../types";
+import { formatMeetingDay, formatMeetingTime, getMeetingDetailsPath, isInteractiveElementTarget } from "../utils/meetings";
 
 export function MeetingsPage() {
   const { id } = useParams();
+  const navigate = useNavigate();
   const [club, setClub] = useState<Club | null>(null);
   const [books, setBooks] = useState<Book[]>([]);
   const [meetings, setMeetings] = useState<Meeting[]>([]);
-  const [commentsByMeeting, setCommentsByMeeting] = useState<Record<number, Comment[]>>({});
   const [title, setTitle] = useState("");
   const [scheduledFor, setScheduledFor] = useState("");
   const [location, setLocation] = useState("");
   const [agenda, setAgenda] = useState("");
   const [bookId, setBookId] = useState("");
-  const [commentDrafts, setCommentDrafts] = useState<Record<number, string>>({});
   const [feedback, setFeedback] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [currentTime, setCurrentTime] = useState(() => new Date().toISOString());
@@ -75,15 +51,10 @@ export function MeetingsPage() {
           meetingService.listByClub(clubId),
         ]);
 
-        const commentEntries = await Promise.all(
-          meetingData.map(async (meeting) => [meeting.id, await meetingService.comments(meeting.id)] as const),
-        );
-
         if (!isMounted) return;
         setClub(clubData);
         setBooks(bookData);
         setMeetings(meetingData);
-        setCommentsByMeeting(Object.fromEntries(commentEntries));
         setCurrentTime(new Date().toISOString());
       } catch (err) {
         if (isMounted) {
@@ -119,7 +90,6 @@ export function MeetingsPage() {
       setMeetings((current) =>
         [...current, createdMeeting].sort((a, b) => new Date(a.scheduled_for).getTime() - new Date(b.scheduled_for).getTime()),
       );
-      setCommentsByMeeting((current) => ({ ...current, [createdMeeting.id]: [] }));
       setCurrentTime(new Date().toISOString());
       setTitle("");
       setScheduledFor("");
@@ -133,35 +103,30 @@ export function MeetingsPage() {
     }
   }
 
-  async function handleAddComment(event: FormEvent<HTMLFormElement>, meetingId: number) {
-    event.preventDefault();
-    const content = commentDrafts[meetingId]?.trim();
-    if (!content) return;
+  function handleMeetingCardClick(event: MouseEvent<HTMLElement>, meetingDetailsPath: string) {
+    if (isInteractiveElementTarget(event.target)) return;
+    navigate(meetingDetailsPath);
+  }
 
-    setFeedback("");
-    try {
-      const createdComment = await meetingService.addComment(meetingId, content);
-      setCommentsByMeeting((current) => ({
-        ...current,
-        [meetingId]: [...(current[meetingId] ?? []), createdComment],
-      }));
-      setMeetings((current) =>
-        current.map((meeting) =>
-          meeting.id === meetingId ? { ...meeting, comment_count: meeting.comment_count + 1 } : meeting,
-        ),
-      );
-      setCommentDrafts((current) => ({ ...current, [meetingId]: "" }));
-      setFeedback("Comentário publicado no encontro.");
-    } catch (err) {
-      setFeedback(getErrorMessage(err));
-    }
+  function handleMeetingCardKeyDown(event: KeyboardEvent<HTMLElement>, meetingDetailsPath: string) {
+    if (event.target !== event.currentTarget) return;
+    if (event.key !== "Enter" && event.key !== " ") return;
+    event.preventDefault();
+    navigate(meetingDetailsPath);
   }
 
   function renderMeetingCard(meeting: Meeting) {
-    const meetingComments = commentsByMeeting[meeting.id] ?? [];
+    const meetingDetailsPath = getMeetingDetailsPath(meeting.club_id, meeting.id);
 
     return (
-      <article className="meeting-card" key={meeting.id}>
+      <article
+        className="meeting-card clickable-card"
+        key={meeting.id}
+        role="link"
+        tabIndex={0}
+        onClick={(event) => handleMeetingCardClick(event, meetingDetailsPath)}
+        onKeyDown={(event) => handleMeetingCardKeyDown(event, meetingDetailsPath)}
+      >
         <div className="meeting-card-header">
           <div>
             <span className="status-pill">{meeting.scheduled_for >= currentTime ? "Próximo" : "Realizado"}</span>
@@ -171,7 +136,10 @@ export function MeetingsPage() {
               <span>⏰ {formatMeetingTime(meeting.scheduled_for)}</span>
             </div>
           </div>
-          <span className="comment-count">{meeting.comment_count} comentário(s)</span>
+          <div className="meeting-card-aside">
+            <span className="comment-count">{meeting.attendee_count} presença(s)</span>
+            <span className="comment-count">{meeting.comment_count} comentário(s)</span>
+          </div>
         </div>
 
         <div className="meeting-meta">
@@ -180,46 +148,6 @@ export function MeetingsPage() {
         </div>
 
         <p>{meeting.agenda || "Sem pauta detalhada cadastrada para este encontro."}</p>
-
-        <details className="meeting-comments">
-          <summary>Comentários e registro</summary>
-          <div className="comment-list">
-            {meetingComments.length ? (
-              meetingComments.map((comment) => (
-                <article className="comment-card" key={comment.id}>
-                  <div className="comment-meta">
-                    <strong>{comment.user_name}</strong>
-                    <span>{formatDateTime(comment.created_at)}</span>
-                  </div>
-                  <p>{comment.content}</p>
-                </article>
-              ))
-            ) : (
-              <div className="empty-state compact">
-                <p>Sem comentários neste encontro.</p>
-                <span>Use o campo abaixo para registrar o encaminhamento da conversa.</span>
-              </div>
-            )}
-          </div>
-
-          <form className="comment-form" onSubmit={(event) => handleAddComment(event, meeting.id)}>
-            <label>
-              Comentário do encontro
-              <AutoResizeTextarea
-                value={commentDrafts[meeting.id] ?? ""}
-                onChange={(event) =>
-                  setCommentDrafts((current) => ({
-                    ...current,
-                    [meeting.id]: event.target.value,
-                  }))
-                }
-                placeholder="Registre uma decisão, impressão ou ponto combinado no encontro."
-                required
-              />
-            </label>
-            <button type="submit">Publicar comentário</button>
-          </form>
-        </details>
       </article>
     );
   }
@@ -234,27 +162,29 @@ export function MeetingsPage() {
 
   return (
     <main className="shell">
-      <section className="page-heading">
+      <section className="page-heading page-heading-with-actions">
         <div>
           <p className="eyebrow">Semana 13</p>
-          <h1>Encontros do {club.name}</h1>
-          <p>Planeje reuniões do clube, vincule livros às conversas e registre comentários simples de cada encontro.</p>
-        </div>
-        <div className="inline-actions">
-          {isAdmin ? (
-            <ActionMenu>
-              <button type="button" onClick={() => setIsMeetingModalOpen(true)}>
-                📍 Criar encontro
-              </button>
-              <Link className="button-link secondary" to={`/clubs/${club.id}`}>
-                ↩️ Voltar ao clube
-              </Link>
-            </ActionMenu>
-          ) : (
-            <Link className="button-link secondary" to={`/clubs/${club.id}`}>
-              Voltar ao clube
-            </Link>
-          )}
+          <div className="page-heading-row">
+            <h1>Encontros do {club.name}</h1>
+            <div className="inline-actions">
+              {isAdmin ? (
+                <>
+                  <button type="button" onClick={() => setIsMeetingModalOpen(true)}>
+                    📍 Criar encontro
+                  </button>
+                  <Link className="button-link secondary" to={`/clubs/${club.id}`}>
+                    ↩️ Voltar ao clube
+                  </Link>
+                </>
+              ) : (
+                <Link className="button-link secondary" to={`/clubs/${club.id}`}>
+                  Voltar ao clube
+                </Link>
+              )}
+            </div>
+          </div>
+          <p>Planeje reuniões do clube, vincule livros às conversas e abra cada encontro em uma página exclusiva.</p>
         </div>
       </section>
 

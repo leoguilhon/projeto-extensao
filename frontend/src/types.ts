@@ -58,6 +58,12 @@ export interface Meeting {
   created_by: number;
   created_at: string;
   comment_count: number;
+  attendee_count: number;
+}
+
+export interface MeetingAttendee {
+  user_id: number;
+  name: string;
 }
 
 export interface Comment {

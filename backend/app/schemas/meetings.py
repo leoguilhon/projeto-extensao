@@ -11,6 +11,10 @@ class MeetingCreate(BaseModel):
     book_id: int | None = None
 
 
+class MeetingUpdate(MeetingCreate):
+    pass
+
+
 class MeetingPublic(BaseModel):
     id: int
     club_id: int
@@ -23,3 +27,9 @@ class MeetingPublic(BaseModel):
     created_by: int
     created_at: str
     comment_count: int = 0
+    attendee_count: int = 0
+
+
+class MeetingAttendeePublic(BaseModel):
+    user_id: int
+    name: str

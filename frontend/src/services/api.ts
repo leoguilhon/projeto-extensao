@@ -6,6 +6,7 @@ import type {
   ClubMember,
   Comment,
   Meeting,
+  MeetingAttendee,
   ReadingHistoryItem,
   ReadingStatus,
   User,
@@ -116,16 +117,37 @@ export const meetingService = {
   listByClub(clubId: string | number) {
     return api.get<Meeting[]>(`/clubs/${clubId}/meetings`).then((response) => response.data);
   },
+  get(id: string | number) {
+    return api.get<Meeting>(`/meetings/${id}`).then((response) => response.data);
+  },
   create(
     clubId: string | number,
     payload: { title: string; scheduled_for: string; location: string; agenda: string; book_id: number | null },
   ) {
     return api.post<Meeting>(`/clubs/${clubId}/meetings`, payload).then((response) => response.data);
   },
+  update(
+    id: string | number,
+    payload: { title: string; scheduled_for: string; location: string; agenda: string; book_id: number | null },
+  ) {
+    return api.put<Meeting>(`/meetings/${id}`, payload).then((response) => response.data);
+  },
+  remove(id: string | number) {
+    return api.delete<void>(`/meetings/${id}`).then((response) => response.data);
+  },
   comments(id: string | number) {
     return api.get<Comment[]>(`/meetings/${id}/comments`).then((response) => response.data);
   },
   addComment(id: string | number, content: string) {
     return api.post<Comment>(`/meetings/${id}/comments`, { content }).then((response) => response.data);
+  },
+  attendees(id: string | number) {
+    return api.get<MeetingAttendee[]>(`/meetings/${id}/attendees`).then((response) => response.data);
+  },
+  confirmAttendance(id: string | number) {
+    return api.post<MeetingAttendee[]>(`/meetings/${id}/attendance`).then((response) => response.data);
+  },
+  cancelAttendance(id: string | number) {
+    return api.delete<MeetingAttendee[]>(`/meetings/${id}/attendance`).then((response) => response.data);
   },
 };
